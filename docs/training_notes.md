@@ -1,0 +1,749 @@
+# PyTorch 训练流程学习笔记
+
+## 一、整体结构
+
+任何 PyTorch 训练都遵循这个结构：
+
+```python
+def main():
+    # 步骤 1：加载模型
+    # 步骤 2：加载数据
+    # 步骤 3：创建优化器
+    # 步骤 4：训练循环
+    # 步骤 5：保存模型
+```
+
+---
+
+## 二、步骤 1：加载模型
+
+### 代码
+
+```python
+config = ModelConfig()
+model = MiniLLM(config)
+ckpt = torch.load(args.pretrained_path, map_location=device, weights_only=False)
+model.load_state_dict(ckpt["model"])
+model = model.to(device)
+```
+
+### 逐行解释
+
+**ModelConfig()**：创建配置对象，包含所有超参数
+
+```python
+config = ModelConfig()
+# config.hidden_size = 512
+# config.num_layers = 12
+# config.vocab_size = 6400
+# ... 共 20 多个参数
+```
+
+**MiniLLM(config)**：根据配置创建模型（随机初始化）
+
+```python
+model = MiniLLM(config)
+# 创建 12 层 Transformer
+# 参数量：38.1M（随机值，还没学任何东西）
+```
+
+**torch.load()**：加载 checkpoint 文件
+
+```python
+ckpt = torch.load("outputs/pretrained/ckpt_final.pt", ...)
+# ckpt 是一个字典：
+# {
+#     "model": {...模型参数...},
+#     "optimizer": {...优化器状态...},
+#     "step": 50000
+# }
+```
+
+**load_state_dict()**：把预训练权重塞进模型
+
+```python
+model.load_state_dict(ckpt["model"])
+# 现在 model 的参数 = 预训练 50000 步学到的参数
+# 模型已经"会说中文"了，但还不会"遵循指令"
+```
+
+**model.to(device)**：把模型搬到 GPU
+
+```python
+model = model.to(device)
+# 所有参数从 CPU 内存 → GPU 显存
+# 后续计算在 GPU 上进行，速度快几十倍
+```
+
+---
+
+## 三、步骤 2：加载数据
+
+### 代码
+
+```python
+tokenizer = spm.SentencePieceProcessor()
+tokenizer.Load("tokenizer/bpe.model")
+train_dataset = SFTDataset(args.data_path, tokenizer, args.max_length)
+train_dataloader = create_dataloader(train_dataset, args.batch_size)
+```
+
+### 逐行解释
+
+**SentencePieceProcessor()**：创建 tokenizer 实例
+
+```python
+tokenizer = spm.SentencePieceProcessor()
+# 空的 tokenizer，还没加载模型
+```
+
+**tokenizer.Load()**：加载训练好的 BPE 模型
+
+```python
+tokenizer.Load("tokenizer/bpe.model")
+# 现在 tokenizer 可以：
+# tokenizer.encode("你好") → [5, 12]  # 文字 → token ids
+# tokenizer.decode([5, 12]) → "你好"   # token ids → 文字
+```
+
+**SFTDataset()**：创建 SFT 数据集
+
+```python
+train_dataset = SFTDataset(args.data_path, tokenizer, 512)
+# 做了什么：
+# 1. 读取 JSONL 文件（396004 条对话）
+# 2. 对每条对话：
+#    - 构造 user + assistant 文本
+#    - tokenize 成 token ids
+#    - 构造 labels（prompt 部分设为 -100）
+#    - 截断到 512 个 token
+# 3. 存到 self.samples
+```
+
+**create_dataloader()**：创建 DataLoader
+
+```python
+train_dataloader = create_dataloader(train_dataset, batch_size=4)
+# 做了什么：
+# 每次从 train_dataset 取 4 个样本
+# 用 collate_fn 把它们 pad 到同一长度
+# 组成一个 batch dict
+#
+# 返回一个可迭代对象：
+# for batch in train_dataloader:
+#     batch["input_ids"]  # shape: (4, seq_len)
+#     batch["labels"]     # shape: (4, seq_len)
+```
+
+---
+
+## 四、batch 是什么
+
+`batch` 是一个 **Python 字典（dict）**，包含一个 batch 的所有数据。
+
+```python
+batch = {
+    "input_ids": tensor([[1, 5, 12, 8, 2, 33, 201, 67, 2],    # 第 1 条对话
+                         [1, 9, 15, 3, 2, 44, 78, 2, 0]]),    # 第 2 条对话（短，后面补了 0）
+    "labels":    tensor([[-100, -100, -100, -100, -100, 33, 201, 67, 2],
+                         [-100, -100, -100, -100, -100, 44, 78, 2, -100]])
+}
+```
+
+### batch_size=2 时的形状
+
+```
+batch["input_ids"]  # shape: (2, 9) — 2 条对话，每条 9 个 token
+batch["labels"]     # shape: (2, 9) — 2 条对话，每条 9 个 label
+```
+
+### 每条对话是什么
+
+```
+第 1 条对话:
+  input_ids: [BOS] [user问题] [EOS] [assistant回答] [EOS]
+  labels:    [-100 ... -100]       [assistant回答] [EOS]
+
+第 2 条对话:
+  input_ids: [BOS] [user问题] [EOS] [assistant回答] [EOS] [pad]
+  labels:    [-100 ... -100]       [assistant回答] [EOS] [-100]
+```
+
+### 为什么叫 batch
+
+```
+单条：一条对话 → (seq_len,)
+batch：多条对话 → (batch_size, seq_len)
+```
+
+一次处理多条（比如 4 条），GPU 并行计算，效率更高。
+
+### 代码里的用法
+
+```python
+batch = {k: v.to(device) for k, v in batch.items()}  # 把整个字典搬到 GPU
+
+logits = model(batch["input_ids"])  # 取出 input_ids，传给模型
+
+loss = F.cross_entropy(..., batch["labels"])  # 取出 labels，算 loss
+```
+
+---
+
+## 五、步骤 3：创建优化器
+
+### 代码
+
+```python
+total_steps = len(train_dataloader) * args.epochs
+optimizer = create_optimizer(model, args.lr, weight_decay=0.01)
+scheduler = create_scheduler(optimizer, warmup_steps, total_steps)
+```
+
+### 逐行解释
+
+**total_steps**：计算总训练步数
+
+```python
+total_steps = len(train_dataloader) * 3  # 3 个 epoch
+# 假设 train_dataloader 有 99000 个 batch
+# total_steps = 99000 * 3 = 297000 步
+```
+
+**create_optimizer()**：创建 AdamW 优化器
+
+```python
+optimizer = create_optimizer(model, lr=1e-5, weight_decay=0.01)
+# 做了什么：
+# 1. 把参数分成两组（decay / no_decay）
+# 2. 创建 AdamW 优化器
+# 3. 每个参数有自己的动量（momentum）历史
+```
+
+**create_scheduler()**：创建学习率调度器
+
+```python
+scheduler = create_scheduler(optimizer, warmup_steps=8910, total_steps=297000)
+# 学习率变化：
+# 0 ~ 8910 步：从 0 线性升到 1e-5（warmup）
+# 8910 ~ 297000 步：从 1e-5 cosine 衰减到 0
+```
+
+---
+
+## 六、步骤 4：训练循环
+
+### 代码
+
+```python
+for epoch in range(args.epochs):
+    for batch in train_dataloader:
+        batch = {k: v.to(device) for k, v in batch.items()}
+        loss = train_one_step(model, batch, optimizer, config)
+        total_loss += loss
+        step += 1
+        if step % args.log_interval == 0:
+            print(f"loss: {avg_loss:.4f}")
+        scheduler.step()
+        if step % args.save_interval == 0:
+            torch.save(...)
+```
+
+### 逐行解释
+
+**for epoch in range(3)**：外层循环，把数据看 3 遍
+
+```
+Epoch 1：第 1 遍看所有数据
+Epoch 2：第 2 遍看所有数据
+Epoch 3：第 3 遍看所有数据
+```
+
+**for batch in train_dataloader**：内层循环，每次取 4 条对话
+
+```
+第 1 次：batch 1（4 条对话）
+第 2 次：batch 2（4 条对话）
+...
+第 99000 次：batch 99000（4 条对话）
+```
+
+**batch = {k: v.to(device)}**：把 batch 搬到 GPU
+
+```python
+batch = {k: v.to(device) for k, v in batch.items()}
+# 等价于：
+# batch["input_ids"] = batch["input_ids"].to(device)
+# batch["labels"] = batch["labels"].to(device)
+```
+
+**train_one_step()**：训练一步（最核心）
+
+```python
+loss = train_one_step(model, batch, optimizer, config)
+# 做了什么：
+# 1. logits = model(batch["input_ids"])      # 前向传播
+# 2. loss = cross_entropy(logits, labels)    # 算 loss
+# 3. loss.backward()                         # 反向传播
+# 4. clip_grad_norm_()                       # 梯度裁剪
+# 5. optimizer.step()                        # 更新参数
+# 6. optimizer.zero_grad()                   # 清零梯度
+# 返回 loss 数值
+```
+
+**scheduler.step()**：更新学习率
+
+```python
+scheduler.step()
+# 学习率随时间变化：
+# 前 3% 步：从 0 升到 1e-5
+# 之后：从 1e-5 衰减到 0
+```
+
+---
+
+## 七、train_one_step 详解
+
+这是训练最核心的函数，6 步是 PyTorch 训练的固定套路。
+
+### 代码
+
+```python
+def train_one_step(model, batch, optimizer, config):
+    model.train()
+    input_ids = batch["input_ids"]
+    labels = batch["labels"]
+
+    # 1. 前向传播
+    logits = model(input_ids)
+
+    # 2. 计算 loss（右移 + 交叉熵）
+    shift_logits = logits[:, :-1, :].contiguous()
+    shift_labels = labels[:, 1:].contiguous()
+    loss = F.cross_entropy(
+        shift_logits.view(-1, config.vocab_size),
+        shift_labels.view(-1),
+        ignore_index=-100,
+    )
+
+    # 3. 反向传播
+    loss.backward()
+
+    # 4. 梯度裁剪
+    torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
+
+    # 5. 更新参数
+    optimizer.step()
+
+    # 6. 清零梯度
+    optimizer.step()
+    optimizer.zero_grad()
+
+    return loss.item()
+```
+
+### 逐行解释
+
+#### model.train()
+
+```python
+model.train()
+# 设置模型为训练模式
+# 会启用 dropout 等训练时才用的层
+# 推理时用 model.eval()
+```
+
+#### 第 1 步：前向传播
+
+```python
+logits = model(input_ids)
+# input_ids: (batch_size, seq_len)
+# logits: (batch_size, seq_len, vocab_size)
+#
+# 含义：模型对每个位置、每个 token 的预测得分
+```
+
+#### 第 2 步：计算 loss
+
+```python
+shift_logits = logits[:, :-1, :].contiguous()    # 丢弃最后一个位置
+shift_labels = labels[:, 1:].contiguous()         # 丢弃第一个位置
+loss = F.cross_entropy(
+    shift_logits.view(-1, config.vocab_size),     # 展平成 2D
+    shift_labels.view(-1),                         # 展平成 1D
+    ignore_index=-100,                              # 跳过 prompt 部分
+)
+```
+
+**为什么要右移？**
+
+```
+输入:  [BOS] [你] [好] [EOS]
+标签:  [你]  [好] [EOS] [PAD]
+
+模型在位置 0 看到 [BOS]，要预测 [你]
+模型在位置 1 看到 [BOS, 你]，要预测 [好]
+...
+
+所以：
+logits 去掉最后一个位置（没有下一个 token 可以预测）
+labels 去掉第一个位置（没有上文可以学习）
+```
+
+**为什么 ignore_index=-100？**
+
+```
+labels: [-100, -100, -100, -100, -100, 33, 201, 67, 2]
+         ↑ prompt 部分设为 -100，cross_entropy 自动跳过
+                         ↑ 只计算 assistant 部分的 loss
+```
+
+**为什么要 view 展平？**
+
+```
+cross_entropy 需要 2D 输入：
+  input: (N, C)  — N 个样本，C 个类别
+  target: (N,)   — N 个标签
+
+所以我们展平：
+  shift_logits.view(-1, 6400)  → (batch×seq, 6400)
+  shift_labels.view(-1)        → (batch×seq,)
+```
+
+#### 第 3 步：反向传播
+
+```python
+loss.backward()
+# 计算每个参数的梯度（∂loss/∂参数）
+# 梯度告诉参数"往哪个方向改能让 loss 变小"
+```
+
+#### 第 4 步：梯度裁剪
+
+```python
+torch.nn.utils.clip_grad_norm_(model.parameters(), config.max_grad_norm)
+# 如果梯度太大（比如 10.0），裁剪到 1.0
+# 防止参数更新太猛，训练不稳定
+```
+
+#### 第 5 步：更新参数
+
+```python
+optimizer.step()
+# 用 AdamW 算法更新每个参数
+# w = w - lr * 修正后的梯度
+```
+
+#### 第 6 步：清零梯度
+
+```python
+optimizer.zero_grad()
+# PyTorch 默认会累加梯度
+# 每步必须清零，否则梯度会越来越大
+```
+
+#### return loss.item()
+
+```python
+return loss.item()
+# loss 是 tensor，.item() 转成 Python float
+# 方便后续打印和累加
+```
+
+---
+
+## 八、步骤 5：保存模型
+
+### 代码
+
+```python
+torch.save({"model": model.state_dict(), "step": step}, final_path)
+```
+
+### torch.save() 详解
+
+```python
+torch.save({"model": model.state_dict()}, "outputs/sft/ckpt_final.pt")
+# 保存的内容：
+# - model.state_dict()：所有参数的值（字典格式）
+# - 之后可以用 torch.load() 加载回来
+```
+
+### state_dict 是什么
+
+```python
+model.state_dict()
+# 返回一个字典：
+# {
+#     "tok_emb.weight": tensor(...),      # embedding 层参数
+#     "layers.0.attn.q_proj.weight": tensor(...),  # 第 0 层 Q 投影
+#     "layers.0.attn.k_proj.weight": tensor(...),  # 第 0 层 K 投影
+#     ... 共几百个参数
+# }
+```
+
+---
+
+## 九、完整流程图
+
+```
+加载预训练模型（会说中文，不会聊天）
+    ↓
+加载 SFT 数据（39 万条对话）
+    ↓
+创建优化器（lr=1e-5，小学习率微调）
+    ↓
+训练循环（3 个 epoch）：
+    for each batch:
+        前向传播 → 算 loss → 反向传播 → 更新参数
+    ↓
+保存 SFT 模型（会说中文，也会聊天）
+```
+
+---
+
+## 十、关键概念总结
+
+| 概念 | 含义 | 类比 |
+|------|------|------|
+| model | 模型（神经网络） | 大脑 |
+| batch | 一批数据 | 一次考试的试卷 |
+| input_ids | 输入的 token ids | 试卷上的题目 |
+| labels | 正确答案 | 试卷的答案 |
+| logits | 模型的预测 | 学生的答案 |
+| loss | 预测和正确的差距 | 考试分数（越低越好） |
+| optimizer | 优化器 | 学习方法 |
+| learning_rate | 学习率 | 每次调整的步幅 |
+| epoch | 把数据看一遍 | 把教材读一遍 |
+| step | 更新一次参数 | 做一道题 |
+| gradient | 梯度 | 错误的方向 |
+| backward() | 反向传播 | 分析错误原因 |
+| optimizer.step() | 更新参数 | 改正错误 |
+| checkpoint | 保存点 | 学习笔记 |
+
+---
+
+## 十一、SFT vs 预训练的区别
+
+| | 预训练 | SFT |
+|---|---|---|
+| 数据 | 纯文本 | (question, answer) 对 |
+| Loss | 所有 token 计算 | 只有 assistant 部分计算 |
+| ignore_index | 0（pad token） | -100（prompt 部分） |
+| 学习率 | 3e-4（大） | 1e-5（小 30 倍） |
+| 训练方式 | 按步数（50000 步） | 按 epoch（3 轮） |
+| 目标 | 学习语言知识 | 学习遵循指令 |
+
+---
+
+## 十二、常用 PyTorch 函数
+
+| 函数 | 作用 | 示例 |
+|------|------|------|
+| `torch.load()` | 加载 checkpoint | `torch.load("model.pt")` |
+| `torch.save()` | 保存 checkpoint | `torch.save(state_dict, "model.pt")` |
+| `model.load_state_dict()` | 加载权重 | `model.load_state_dict(ckpt["model"])` |
+| `model.state_dict()` | 获取权重 | `model.state_dict()` |
+| `model.to(device)` | 搬到 GPU | `model.to("cuda")` |
+| `model.train()` | 训练模式 | 启用 dropout |
+| `model.eval()` | 推理模式 | 关闭 dropout |
+| `loss.backward()` | 反向传播 | 计算梯度 |
+| `optimizer.step()` | 更新参数 | 用梯度修正参数 |
+| `optimizer.zero_grad()` | 清零梯度 | 准备下一步 |
+| `F.cross_entropy()` | 交叉熵 loss | 分类任务的 loss 函数 |
+| `.item()` | tensor → float | 方便打印和累加 |
+| `.contiguous()` | 内存连续 | `.view()` 需要连续内存 |
+| `torch.no_grad()` | 不计算梯度 | 推理时省显存 |
+
+---
+
+## 十三、LoRA 高效微调
+
+### 13.1 什么是 LoRA
+
+**LoRA（Low-Rank Adaptation）**：冻结原始权重，在旁边加一个小矩阵，只训练小矩阵。
+
+```
+原始：y = Wx
+LoRA：y = Wx + (α/r) * B @ A @ x
+       ↑         ↑
+    原始权重    新加的小矩阵（只训练这个）
+   （冻结）    （A: d×r, B: r×d）
+```
+
+### 13.2 为什么省参数
+
+```
+原始权重 W：512 × 512 = 262,144 参数
+LoRA A：512 × 8 = 4,096 参数
+LoRA B：8 × 512 = 4,096 参数
+LoRA 总共：8,192 参数（只占 3%）
+
+Qwen 1.5B 模型：
+  全参微调：1,550M 参数全部训练
+  LoRA r=8：只训练 ~2M 参数（0.14%）
+  效果差距很小，显存节省巨大
+```
+
+### 13.3 LoRA 的数学原理
+
+```
+原始前向传播：y = Wx
+
+W 是一个大矩阵（比如 512×512）
+直接训练 W 需要 262,144 个参数
+
+LoRA 的想法：
+  W = W₀ + ΔW
+  其中 W₀ 是原始权重（冻结，不训练）
+  ΔW = B × A（低秩分解）
+    A: (512, 8) — 随机初始化
+    B: (8, 512) — 初始化为 0
+
+  训练时只更新 A 和 B，W₀ 保持不变
+  ΔW 的参数量 = 512×8 + 8×512 = 8,192（比 262,144 少 32 倍）
+```
+
+### 13.4 为什么 B 初始化为 0
+
+```
+训练开始时：
+  ΔW = B × A = 0 × A = 0
+  所以 y = W₀x + 0 = W₀x
+
+  → 模型初始输出和原始模型完全一样
+  → 训练过程中逐渐学习 ΔW
+  → 保证训练稳定性
+```
+
+### 13.5 缩放因子 α/r
+
+```
+y = W₀x + (α/r) * B @ A @ x
+         ↑
+      缩放因子
+
+α=16, r=8 → scaling = 16/8 = 2
+α=16, r=4 → scaling = 16/4 = 4
+α=32, r=8 → scaling = 32/8 = 4
+
+α/r 越大，LoRA 部分的影响越大
+通常 α = 2r（比如 r=8, α=16）
+```
+
+### 13.6 代码实现
+
+#### LoRALinear 类
+
+```python
+class LoRALinear(nn.Module):
+    """LoRA 线性层：在原始 Linear 旁边加低秩适配"""
+
+    def __init__(self, in_features, out_features, r=8, lora_alpha=16, lora_dropout=0.05):
+        super().__init__()
+        self.r = r
+        self.scaling = lora_alpha / r
+
+        # A 矩阵：随机初始化
+        self.lora_A = nn.Parameter(torch.randn(in_features, r) * 0.01)
+
+        # B 矩阵：初始化为 0（训练开始时 ΔW=0，不影响原始模型）
+        self.lora_B = nn.Parameter(torch.zeros(r, out_features))
+
+        self.lora_dropout = nn.Dropout(lora_dropout)
+
+    def forward(self, x):
+        # 原始部分：Wx（由外部处理，这里只返回 LoRA 部分）
+        # LoRA 部分：(α/r) * x @ A @ B
+        return self.lora_dropout(x) @ self.lora_A @ self.lora_B * self.scaling
+```
+
+#### apply_lora_to_model 函数
+
+```python
+def apply_lora_to_model(model, r=8, lora_alpha=16, target_modules=None):
+    """对模型的指定层应用 LoRA"""
+
+    # 1. 冻结所有参数
+    for param in model.parameters():
+        param.requires_grad = False
+
+    # 2. 遍历模型的所有模块
+    for name, module in model.named_modules():
+        # 3. 找到目标层（比如 "layers.0.attn.q_proj"）
+        if any(target in name for target in target_modules):
+            # 4. 替换为 LoRA 版本
+            lora_layer = LoRALinear(
+                module.in_features,
+                module.out_features,
+                r=r,
+                lora_alpha=lora_alpha,
+            )
+            # 复制原始权重
+            lora_layer.weight = module.weight
+            lora_layer.bias = module.bias
+            # 替换
+            set_module_by_name(model, name, lora_layer)
+
+    # 5. 只有 LoRA 的 A, B 参数需要训练
+    for param in model.parameters():
+        if param.requires_grad:
+            print(f"可训练参数: {param.shape}")
+```
+
+#### merge_lora_weights 函数
+
+```python
+def merge_lora_weights(model):
+    """合并 LoRA 权重到原始权重（推理时使用）"""
+
+    for name, module in model.named_modules():
+        if isinstance(module, LoRALinear):
+            # W' = W + (α/r) * B @ A
+            module.weight.data += module.scaling * (module.lora_B @ module.lora_A)
+
+    print("LoRA 权重已合并")
+```
+
+### 13.7 LoRA vs 全参微调对比
+
+| | 全参微调 | LoRA r=8 |
+|---|---|---|
+| 可训练参数 | 100% | 0.14% |
+| 显存占用 | 高 | 低 |
+| 训练速度 | 慢 | 快 |
+| 效果 | 最好 | 接近全参 |
+| 保存大小 | 完整模型 | 只保存 A, B |
+
+### 13.8 QLoRA（4-bit 量化 + LoRA）
+
+```
+QLoRA = 4-bit 量化基础模型 + LoRA 微调
+
+  基础模型：4-bit 量化（每个参数只占 0.5 字节）
+  LoRA A/B：16-bit（正常精度）
+
+  Qwen 1.5B：
+    全参微调：显存 ~12GB
+    LoRA：显存 ~6GB
+    QLoRA：显存 ~3GB（4-bit 基础模型 + LoRA 参数）
+```
+
+### 13.9 LoRA 的使用场景
+
+```
+场景 1：显存不够
+  - 全参微调需要 12GB，你只有 6GB
+  - 用 LoRA，只训练 0.14% 的参数
+
+场景 2：多个任务
+  - 基础模型：Qwen 1.5B（一份）
+  - 任务 A 的 LoRA：A 矩阵 + B 矩阵（几十 MB）
+  - 任务 B 的 LoRA：A 矩阵 + B 矩阵（几十 MB）
+  - 切换任务只需要加载不同的 LoRA
+
+场景 3：快速迭代
+  - 全参微调：训练 2 小时
+  - LoRA：训练 20 分钟
+  - 效果差不多，迭代速度快 6 倍
+```

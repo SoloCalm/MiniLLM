@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "minillm-posttrain"
+version = "1.0.0"
+description = "从零训练 41M 参数中文对话模型，完成预训练→SFT→LoRA→DPO→部署全流程"
+readme = "README_CN.md"
+license = {text = "MIT"}
+requires-python = ">=3.10"
+
+dependencies = [
+    "torch>=2.1.0",
+    "sentencepiece>=0.1.99",
+    "numpy>=1.24.0",
+]
+
+[project.optional-dependencies]
+full = [
+    "transformers>=4.45.0",
+    "datasets>=2.19.0",
+    "peft>=0.12.0",
+    "accelerate>=0.33.0",
+    "protobuf>=3.20.0",
+    "huggingface_hub>=0.24.0",
+]
+deploy = [
+    "vllm",
+    "openai",
+]
+eval = [
+    "matplotlib",
+]
+dev = [
+    "pytest>=7.0",
+]
+all = [
+    "minillm-posttrain[full,deploy,eval,dev]",
+]
+
+[tool.setuptools.packages.find]
+include = ["model*", "training*", "inference*", "eval*", "data_utils*", "tokenizer*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]

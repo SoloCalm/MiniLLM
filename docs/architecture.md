@@ -1,0 +1,233 @@
+# 架构文档：MiniLLM-PostTrain
+
+## 项目概述
+
+从零训练 41M 参数中文对话模型，手写 Transformer 架构，走完预训练→SFT→LoRA→DPO→部署全流程。
+
+---
+
+## 整体架构
+
+```
+┌─────────────────────────────────────────────────────────────┐
+│                    MiniLLM-PostTrain                         │
+├─────────────────────────────────────────────────────────────┤
+│                                                             │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │   数据层     │ →  │   模型层     │ →  │   训练层     │     │
+│  │  data_utils  │    │    model/    │    │  training/   │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+│         ↓                  ↓                  ↓              │
+│  ┌─────────────┐    ┌─────────────┐    ┌─────────────┐     │
+│  │   推理层     │ ←  │   评估层     │ ←  │   输出层     │     │
+│  │  inference/  │    │    eval/     │    │   outputs/   │     │
+│  └─────────────┘    └─────────────┘    └─────────────┘     │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## 模块详解
+
+### 1. 数据层（data_utils/）
+
+```
+data_utils/
+├── clean_pretrain.py      # 预训练语料清洗
+├── prepare_sft.py         # SFT 数据构造
+└── convert_ultrafeedback.py  # DPO 数据转换
+```
+
+**数据流**：
+```
+原始数据 → 清洗 → tokenize → 存磁盘 → 训练时加载
+```
+
+---
+
+### 2. 模型层（model/）
+
+```
+model/
+├── config.py              # 模型配置
+├── rope.py                # RoPE 位置编码
+├── attention.py           # GQA 注意力
+├── ffn.py                 # SwiGLU FFN
+├── block.py               # Transformer Block
+└── modeling_llm.py        # 完整模型
+```
+
+**模型架构**：
+```
+输入: token ids
+    ↓
+Embedding (6400 × 512)
+    ↓
+12 × Transformer Block
+├── RMSNorm
+├── GQA Attention (8Q/4KV)
+├── Residual
+├── RMSNorm
+├── SwiGLU FFN
+└── Residual
+    ↓
+RMSNorm
+    ↓
+LM Head (权重共享)
+    ↓
+输出: logits
+```
+
+**模型参数**：
+| 组件 | 参数量 |
+|------|--------|
+| Embedding | 3.3M |
+| 每层 Transformer | 3.16M |
+| 12 层总计 | 37.9M |
+| LM Head | 3.3M |
+| **总计** | **~41M** |
+
+---
+
+### 3. 训练层（training/）
+
+```
+training/
+├── optimizer.py           # AdamW + Cosine Warmup
+├── data_loader.py         # 数据加载器
+├── pretrain.py            # 预训练循环
+├── sft.py                 # SFT 微调
+├── lora.py                # LoRA/QLoRA
+└── dpo.py                 # DPO 偏好对齐
+```
+
+**训练流程**：
+```
+预训练 → SFT → LoRA → DPO
+   ↓      ↓     ↓     ↓
+  50k步  99k步  可选   5k步
+```
+
+---
+
+### 4. 推理层（inference/）
+
+```
+inference/
+├── export_hf.py           # 导出 HuggingFace 格式
+└── chat.py                # 对话界面
+```
+
+**推理流程**：
+```
+用户输入 → tokenize → generate → decode → 输出
+```
+
+---
+
+### 5. 评估层（eval/）
+
+```
+eval/
+└── perplexity.py          # Perplexity 计算
+```
+
+**评估指标**：
+- Perplexity (PPL): 13.03
+
+---
+
+## 数据流
+
+### 预训练数据流
+```
+JSONL 文件 → clean_pretrain.py → tokenize → .npy 文件 → PretrainDatasetMmap
+```
+
+### SFT 数据流
+```
+JSONL 文件 → prepare_sft.py → SFTDataset → DataLoader
+```
+
+### DPO 数据流
+```
+Parquet 文件 → convert_ultrafeedback.py → JSONL → DPODataset → DataLoader
+```
+
+---
+
+## 训练配置
+
+### 预训练
+| 参数 | 值 |
+|------|-----|
+| batch_size | 4 |
+| grad_accum | 4 |
+| lr | 3e-4 |
+| max_length | 1024 |
+| epochs | 50k steps |
+
+### SFT
+| 参数 | 值 |
+|------|-----|
+| batch_size | 4 |
+| lr | 1e-5 |
+| max_length | 512 |
+| epochs | 1 |
+
+### DPO
+| 参数 | 值 |
+|------|-----|
+| batch_size | 2 |
+| lr | 5e-7 |
+| β | 0.2 |
+| max_length | 512 |
+| epochs | 1 |
+
+---
+
+## 消融实验设计
+
+| 实验 | 对比项 | 核心结论 |
+|------|--------|----------|
+| 1 | 预训练学习率 | 3e-4 收敛更快 |
+| 2 | LoRA rank | rank=8 性价比最高 |
+| 3 | 全参 vs LoRA | LoRA 用 2.28% 参数达到全参效果 |
+| 4 | DPO β 值 | β=0.2 是平衡点 |
+| 5 | 41M vs 1.5B | 大模型微调效果更好 |
+
+---
+
+## 技术栈
+
+| 类别 | 技术 |
+|------|------|
+| 框架 | PyTorch |
+| Tokenizer | SentencePiece (BPE) |
+| 优化器 | AdamW |
+| 调度器 | Cosine Warmup |
+| 微调 | LoRA / QLoRA |
+| 对齐 | DPO |
+| 部署 | 命令行对话 + HuggingFace 导出 |
+| 评估 | Perplexity |
+
+---
+
+## 文件结构
+
+```
+MyLLM/
+├── model/              # 模型架构（手写）
+├── training/           # 训练模块
+├── inference/          # 推理模块
+├── eval/               # 评估模块
+├── data_utils/         # 数据处理
+├── scripts/            # 执行入口
+├── configs/            # 实验配置
+├── tokenizer/          # Tokenizer
+├── data/               # 数据
+├── outputs/            # 模型 checkpoint
+├── results/            # 实验结果
+└── docs/               # 文档
+```

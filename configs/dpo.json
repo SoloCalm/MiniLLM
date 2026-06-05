@@ -1,0 +1,9 @@
+{
+    "dpo_lr": 5e-7,
+    "dpo_epochs": 2,
+    "dpo_beta": 0.2,
+    "dpo_batch_size": 4,
+    "dpo_max_length": 512,
+    "log_interval": 50,
+    "save_interval": 500
+}

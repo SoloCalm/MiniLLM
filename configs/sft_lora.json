@@ -1,0 +1,13 @@
+{
+    "sft_lr": 1e-4,
+    "_comment": "LoRA 使用更高学习率（1e-4 vs 全参 1e-5），因为只训练少量参数",
+    "sft_epochs": 3,
+    "sft_batch_size": 8,
+    "sft_grad_accum": 2,
+    "sft_max_length": 512,
+    "lora_rank": 8,
+    "lora_alpha": 16,
+    "log_interval": 50,
+    "save_interval": 500,
+    "eval_interval": 500
+}

@@ -1,0 +1,293 @@
+# 项目总结：MiniLLM-PostTrain
+
+双轨中文对话模型训练项目，单卡 RTX 4050 6GB 完成。
+
+| 轨道 | 基座 | 流程 | 定位 |
+|------|------|------|------|
+| A：自研 41M | 手写 LLaMA2 Transformer | Pretrain → SFT → LoRA → DPO | 理解底层原理 |
+| B：Qwen2.5-1.5B | HuggingFace 预训练模型 | QLoRA → vLLM 部署 | 验证工程实践 |
+
+---
+
+## 一、项目总览
+
+### 轨道 A：自研 41M
+
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| 1 | 数据工程 + Tokenizer + 手写 Transformer | ✅ |
+| 2 | 预训练（50k 步） | ✅ |
+| 3 | SFT 微调 + 5 组消融实验 | ✅ |
+| 4 | LoRA 微调 | ✅ |
+| 5 | DPO 偏好对齐 | ✅ |
+| 6 | CLI 对话 + 评估 | ✅ |
+
+### 轨道 B：Qwen2.5-1.5B QLoRA
+
+| 阶段 | 内容 | 状态 |
+|------|------|------|
+| 1 | QLoRA 微调（4-bit NF4 + LoRA） | ✅ |
+| 2 | vLLM 服务化部署 | ✅ |
+
+## 二、模型架构（轨道 A）
+
+LLaMA2 风格 Decoder-only Transformer，手写实现。
+
+| 配置 | 值 |
+|------|-----|
+| 参数量 | ~38M（权重共享后） |
+| 层数 | 12 |
+| 隐藏维度 | 512 |
+| 注意力 | GQA（8Q / 4KV），head_dim=64 |
+| FFN | SwiGLU（intermediate=1376） |
+| 位置编码 | RoPE（θ=10000） |
+| 归一化 | RMSNorm（Pre-norm） |
+| 词表 | 6,400（BPE，SentencePiece） |
+| 最大长度 | 1024 |
+
+核心模块：`model/config.py`、`rope.py`、`attention.py`、`ffn.py`、`block.py`、`modeling_llm.py`
+
+## 三、数据工程
+
+### 数据集
+
+| 数据集 | 用途 | 规模 |
+|--------|------|------|
+| minimind_dataset | 预训练 + DPO | 1.41M 条 |
+| generated_chat_0.4M | SFT | 400K 对话 |
+| firefly-train-1.1M | QLoRA 基线 SFT | 1.1M 条 |
+| ultrafeedback_binarized | DPO 偏好对 | train/test 分割 |
+
+### 数据 Pipeline
+
+统一入口 `scripts/run_pipeline.py`，串联清洗→tokenize→切分：
+
+```bash
+python scripts/run_pipeline.py              # 跑完整 pipeline
+python scripts/run_pipeline.py --stage clean  # 只跑清洗
+python scripts/run_pipeline.py --stage sft    # 只跑 SFT 数据
+```
+
+### 关键问题：OOM
+
+预训练数据 3.95 亿 token，Python list 存储需 ~11 GB 内存，超出系统限制。
+
+**解决方案：** 预 tokenize + numpy uint16 内存映射
+
+| | 原方案 | 新方案 |
+|---|---|---|
+| 存储格式 | Python list of int | numpy uint16 |
+| 每 token 内存 | 28 字节 | 2 字节 |
+| 3.95 亿 token | ~11 GB | ~0 MB（磁盘 791 MB） |
+| 加载方式 | 全量加载 | 内存映射按需加载 |
+
+实现：`scripts/tokenize_to_disk.py` + `training/data_loader.py::PretrainDatasetMmap`
+
+## 四、训练流程
+
+### 4.1 预训练
+
+| 配置 | 值 |
+|------|-----|
+| 学习率 | 3e-4（cosine decay + linear warmup） |
+| Batch size | 16 × 4（grad_accum）= 64 effective |
+| 步数 | 50,000 |
+| 精度 | bf16 |
+
+### 4.2 SFT 微调
+
+| 配置 | 值 |
+|------|-----|
+| 学习率 | 1e-5 |
+| Epochs | 3 |
+| Batch size | 8 |
+| Loss 策略 | 仅 assistant 部分计算（prompt 部分 -100） |
+
+### 4.3 LoRA 微调
+
+自实现 `LoRALinear`（drop-in 替换 `nn.Linear`），支持 rank 4/8/16。
+
+### 4.4 QLoRA 基线
+
+Qwen2.5-1.5B + BitsAndBytes 4-bit NF4 + PEFT LoRA，使用 HuggingFace Trainer。
+
+### 4.5 DPO 对齐
+
+自实现 DPO loss，参考模型为冻结的 SFT 副本。
+
+| β | Margin | 特点 |
+|---|--------|------|
+| 0.1 | 0.1222 | 激进 |
+| 0.2 | 0.2236 | 平衡（推荐） |
+| 0.5 | 0.3199 | 保守 |
+
+## 五、消融实验
+
+### 实验 1：预训练学习率
+
+| 配置 | 步数 | 收敛 | 结果 |
+|------|------|------|------|
+| lr=1e-4 | 10k | 慢 | loss 较高 |
+| lr=3e-4 | 50k | 快 | loss 较低 |
+
+**结论：** 3e-4 收敛更快，效果更好。
+
+### 实验 2：LoRA Rank
+
+| Rank | 可训练参数 | 占比 | 显存 |
+|------|------------|------|------|
+| r=4 | 443,904 | 1.15% | 1.05 GB |
+| r=8 | 887,808 | 2.28% | 1.20 GB |
+| r=16 | 1,775,616 | 4.45% | 1.36 GB |
+
+**结论：** r=8 性价比最高。
+
+### 实验 3：全参 vs LoRA
+
+| 方法 | 可训练参数 | 占比 | 峰值显存 |
+|------|------------|------|----------|
+| 全参 SFT | 38,089,216 | 100% | 1.27 GB |
+| LoRA SFT | 887,808 | 2.28% | 1.05 GB |
+
+**结论：** LoRA 用 2.28% 参数达到全参效果，显存省 17%。
+
+### 实验 4：DPO β 值
+
+见 4.5 节。β=0.2 为推荐值。
+
+### 实验 5：41M vs 1.5B
+
+| 模型 | 回复率 | 质量 |
+|------|--------|------|
+| MiniLLM 41M | 15% | 大部分为空，表达能力有限 |
+| Qwen2.5-1.5B QLoRA | 70% | 有内容，但存在重复 |
+
+**结论：** 41M 参数量级限制了指令遵循能力，大模型 + QLoRA 效果显著更好。
+
+## 六、评估
+
+### 指标
+
+| 指标 | 数值 |
+|------|------|
+| Perplexity（DPO 模型） | 13.03 |
+| DPO Reward Margin（β=0.2） | 0.2236 |
+
+### 评测工具
+
+```bash
+# Perplexity
+python eval/perplexity.py --model-path outputs/dpo/ckpt_final.pt
+
+# 结构化评测（8 prompt × 3 维度评分，多模型对比）
+python eval/benchmark.py \
+    --checkpoints outputs/pretrained/ckpt_final.pt outputs/sft/ckpt_final.pt outputs/dpo/ckpt_final.pt \
+    --labels Pretrain SFT DPO \
+    --output results/benchmark.json
+```
+
+### 生成效果示例
+
+| Prompt | 预训练模型 | SFT 模型 |
+|--------|-----------|----------|
+| 你好 | 你好地安排时间,避免时间浪费... | 你好地学习。因此,我们可以利用机器学习... |
+| 人工智能是什么 | 人工智能是什么?我要从小就知道... | 人工智能是什么?你认为世界上最高的山峰... |
+| 中国的首都是哪里 | 中国的首都是哪里有很多美味的菜肴... | 中国的首都是哪里,我需要知道什么... |
+
+## 七、部署
+
+### 轨道 B：vLLM 服务化（Qwen2.5-1.5B）
+
+```bash
+# 启动服务
+python scripts/serve_vllm.py --port 8000
+
+# 验证服务
+python scripts/smoke_vllm.py
+
+# 调用 API
+curl http://localhost:8000/v1/chat/completions \
+  -H "Content-Type: application/json" \
+  -d '{"model": "Qwen/Qwen2.5-1.5B", "messages": [{"role": "user", "content": "你好"}]}'
+```
+
+### 轨道 A：HuggingFace 导出（41M）
+
+```bash
+python inference/export_hf.py \
+    --checkpoint outputs/dpo/ckpt_final.pt \
+    --output-dir outputs/hf_model
+```
+
+### 轨道 A：命令行对话（41M）
+
+```bash
+python inference/chat.py --checkpoint outputs/dpo/ckpt_final.pt
+# 支持多轮对话，输入 clear 清空历史，输入 quit 退出
+```
+
+## 八、踩坑记录（Top 5）
+
+| # | 问题 | 原因 | 解决 |
+|---|------|------|------|
+| 1 | 预训练 OOM | Python int 28 字节/token | numpy uint16 + mmap |
+| 2 | 350M 模型 6GB GPU 跑不了 | 模型太大 | 降为 41M |
+| 3 | generate() 多生成 1 个 token | 首次 forward 只传了最后 1 个 token | 循环内判断 KV Cache 状态 |
+| 4 | GQA 参数量估算不准 | K/V 头数用了 num_heads | 改为 num_kv_heads |
+| 5 | top-p 采样非标准 | 累积概率判断逻辑有误 | 改为标准 nucleus sampling |
+
+完整 bug 清册见 `docs/bug_catalog.md`。
+
+## 九、文件结构
+
+```
+MyLLM/
+├── model/              # 轨道 A：手写 Transformer 架构（6 模块 + 参考实现）
+├── training/           # 轨道 A：训练模块（pretrain/sft/lora/dpo/optimizer/data_loader）
+├── scripts/
+│   ├── 1_train_tokenizer.py   # 轨道 A：Tokenizer 训练
+│   ├── 2_pretrain.py          # 轨道 A：预训练
+│   ├── 3_sft.py               # 轨道 A：SFT/LoRA
+│   ├── 4_qlora.py             # 轨道 B：Qwen2.5-1.5B QLoRA
+│   ├── 5_dpo.py               # 轨道 A：DPO 对齐
+│   ├── serve_vllm.py          # 轨道 B：vLLM 服务部署
+│   ├── smoke_vllm.py          # 轨道 B：vLLM 验证
+│   ├── run_pipeline.py        # 共用：数据 pipeline
+│   ├── run_lora_rank_ablation.py  # 轨道 A：消融实验
+│   ├── run_ft_vs_lora.py      # 轨道 A：消融实验
+│   ├── compare_models.py      # 共用：双轨对比
+│   ├── smoke_test.py          # 共用：环境验证
+│   └── ...
+├── tokenizer/          # 轨道 A：BPE Tokenizer 训练
+├── data_utils/         # 共用：数据清洗/准备
+├── inference/          # 轨道 A：部署（export + chat）
+├── eval/               # 共用：评估（perplexity + benchmark）
+├── tests/              # 共用：单元测试（8 个）
+├── configs/            # 实验配置（6 个 JSON）
+├── docs/               # 文档（架构/bug/DPO理论/训练笔记/项目总结）
+├── results/            # 实验结果 + 生成对比
+├── data/               # 数据集（gitignore）
+│   ├── minimind_dataset/      # 轨道 A 数据
+│   ├── generated_chat_0.4M/   # 轨道 A SFT 数据
+│   ├── firefly-train-1.1M/    # 轨道 B SFT 数据
+│   └── ultrafeedback_binarized/  # 轨道 A DPO 数据
+├── outputs/            # 模型 checkpoint（gitignore）
+│   ├── pretrained/        # 轨道 A
+│   ├── sft/               # 轨道 A
+│   ├── dpo/               # 轨道 A
+│   └── sft_qlora/         # 轨道 B
+├── pyproject.toml
+├── README.md
+└── README_CN.md
+```
+
+## 十、技术栈
+
+| 层 | 轨道 A（自研 41M） | 轨道 B（Qwen2.5-1.5B） |
+|----|-------------------|----------------------|
+| 架构 | 手写 LLaMA2（GQA+SwiGLU+RoPE+RMSNorm） | HuggingFace Qwen2.5-1.5B |
+| 训练 | PyTorch 原生 | HuggingFace Trainer + PEFT |
+| 微调 | 自实现 LoRA | QLoRA（4-bit NF4 + LoRA） |
+| 对齐 | 自实现 DPO | — |
+| 部署 | CLI 对话 + HF 导出 | vLLM 服务化 |
+| Tokenizer | SentencePiece BPE（6400 vocab） | Qwen 原生 Tokenizer |

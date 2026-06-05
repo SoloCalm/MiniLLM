@@ -1,0 +1,37 @@
+{
+  "config": {
+    "batch_size": 2,
+    "lr_ft": 5e-06,
+    "lr_lora": 0.0001,
+    "max_length": 512,
+    "warmup_steps": 50,
+    "max_steps": 200,
+    "epochs": 1,
+    "log_interval": 50
+  },
+  "full_ft": {
+    "method": "full",
+    "trainable_params": 38089216,
+    "total_params": 38089216,
+    "trainable_ratio": 100.0,
+    "lr": 5e-06,
+    "final_loss": 0.0,
+    "duration_seconds": 63.437437295913696,
+    "duration_minutes": 1.0572906215985616,
+    "start_memory_gb": 0.1434803009033203,
+    "peak_memory_gb": 1.2655744552612305
+  },
+  "lora": {
+    "method": "lora",
+    "trainable_params": 887808,
+    "total_params": 38977024,
+    "trainable_ratio": 2.2777726693551563,
+    "lr": 0.0001,
+    "final_loss": 0.0,
+    "duration_seconds": 79.17114615440369,
+    "duration_minutes": 1.3195191025733948,
+    "start_memory_gb": 0.1626567840576172,
+    "peak_memory_gb": 1.0515813827514648
+  },
+  "timestamp": "2026-06-02T22:19:34.938054"
+}

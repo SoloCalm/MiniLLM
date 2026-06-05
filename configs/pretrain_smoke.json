@@ -1,0 +1,10 @@
+{
+    "pretrain_lr": 3e-4,
+    "pretrain_warmup_steps": 100,
+    "pretrain_batch_size": 8,
+    "pretrain_grad_accum": 2,
+    "pretrain_max_steps": 100,
+    "log_interval": 10,
+    "save_interval": 50,
+    "eval_interval": 50
+}

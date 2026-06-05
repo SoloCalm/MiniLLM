@@ -1,0 +1,10 @@
+{
+    "sft_lr": 1e-5,
+    "sft_epochs": 3,
+    "sft_batch_size": 8,
+    "sft_grad_accum": 2,
+    "sft_max_length": 512,
+    "log_interval": 50,
+    "save_interval": 500,
+    "eval_interval": 500
+}

@@ -1,0 +1,54 @@
+{
+  "config": {
+    "batch_size": 2,
+    "lr": 0.0001,
+    "max_length": 512,
+    "grad_accum": 4,
+    "warmup_steps": 100,
+    "max_steps": 200,
+    "epochs": 1,
+    "log_interval": 50
+  },
+  "results": [
+    {
+      "rank": 4,
+      "lora_alpha": 8,
+      "trainable_params": 443904,
+      "total_params": 38533120,
+      "trainable_ratio": 1.1520063778899814,
+      "train_losses": [
+        0.0
+      ],
+      "duration_seconds": 73.05477976799011,
+      "duration_minutes": 1.2175796627998352,
+      "gpu_memory_gb": 1.0481767654418945
+    },
+    {
+      "rank": 8,
+      "lora_alpha": 16,
+      "trainable_params": 887808,
+      "total_params": 38977024,
+      "trainable_ratio": 2.2777726693551563,
+      "train_losses": [
+        0.0
+      ],
+      "duration_seconds": 76.43074798583984,
+      "duration_minutes": 1.2738457997639974,
+      "gpu_memory_gb": 1.2009878158569336
+    },
+    {
+      "rank": 16,
+      "lora_alpha": 32,
+      "trainable_params": 1775616,
+      "total_params": 39864832,
+      "trainable_ratio": 4.454091265203376,
+      "train_losses": [
+        0.0
+      ],
+      "duration_seconds": 84.88742256164551,
+      "duration_minutes": 1.4147903760274252,
+      "gpu_memory_gb": 1.3601694107055664
+    }
+  ],
+  "timestamp": "2026-06-02T22:15:27.103667"
+}

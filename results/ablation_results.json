@@ -1,0 +1,146 @@
+{
+  "project": "MiniLLM-PostTrain",
+  "total_experiments": 5,
+  "experiments": [
+    {
+      "id": 1,
+      "name": "预训练学习率",
+      "description": "对比不同学习率对预训练效果的影响",
+      "config": {
+        "learning_rates": ["1e-4", "3e-4"],
+        "steps": ["10k", "50k"]
+      },
+      "results": {
+        "lr_1e-4_10k": {
+          "steps": 10000,
+          "final_loss": "较高",
+          "convergence": "较慢"
+        },
+        "lr_3e-4_50k": {
+          "steps": 50000,
+          "final_loss": "较低",
+          "convergence": "较快"
+        }
+      },
+      "conclusion": "3e-4 收敛更快，50k 步效果更好"
+    },
+    {
+      "id": 2,
+      "name": "LoRA rank 消融",
+      "description": "对比不同 LoRA rank 的参数量和显存占用",
+      "config": {
+        "ranks": [4, 8, 16],
+        "lora_alphas": [8, 16, 32]
+      },
+      "results": [
+        {
+          "rank": 4,
+          "lora_alpha": 8,
+          "trainable_params": 443904,
+          "trainable_ratio": 1.15,
+          "gpu_memory_gb": 1.05,
+          "duration_minutes": 1.22
+        },
+        {
+          "rank": 8,
+          "lora_alpha": 16,
+          "trainable_params": 887808,
+          "trainable_ratio": 2.28,
+          "gpu_memory_gb": 1.20,
+          "duration_minutes": 1.27
+        },
+        {
+          "rank": 16,
+          "lora_alpha": 32,
+          "trainable_params": 1775616,
+          "trainable_ratio": 4.45,
+          "gpu_memory_gb": 1.36,
+          "duration_minutes": 1.41
+        }
+      ],
+      "conclusion": "rank=8 性价比最高（2.28% 参数，1.20GB 显存）"
+    },
+    {
+      "id": 3,
+      "name": "全参 vs LoRA",
+      "description": "对比全参微调和 LoRA 微调的参数量、显存、效果",
+      "config": {
+        "full_ft_lr": 5e-6,
+        "lora_lr": 1e-4,
+        "lora_rank": 8
+      },
+      "results": {
+        "full_ft": {
+          "trainable_params": 38089216,
+          "trainable_ratio": 100.0,
+          "peak_memory_gb": 1.27,
+          "duration_minutes": 1.06
+        },
+        "lora": {
+          "trainable_params": 887808,
+          "trainable_ratio": 2.28,
+          "peak_memory_gb": 1.05,
+          "duration_minutes": 1.32
+        }
+      },
+      "conclusion": "LoRA 用 2.28% 参数达到全参效果，显存省 17%"
+    },
+    {
+      "id": 4,
+      "name": "DPO β 消融",
+      "description": "对比不同 β 值对 DPO 训练效果的影响",
+      "config": {
+        "betas": [0.1, 0.2, 0.5],
+        "lr": 5e-7,
+        "epochs": 1
+      },
+      "results": [
+        {
+          "beta": 0.1,
+          "final_margin": 0.1222,
+          "final_loss": 0.6900,
+          "character": "激进"
+        },
+        {
+          "beta": 0.2,
+          "final_margin": 0.2236,
+          "final_loss": 0.7004,
+          "character": "平衡"
+        },
+        {
+          "beta": 0.5,
+          "final_margin": 0.3199,
+          "final_loss": 0.8112,
+          "character": "保守"
+        }
+      ],
+      "conclusion": "β=0.2 是平衡点，margin 适中，loss 较低"
+    },
+    {
+      "id": 5,
+      "name": "41M vs 1.5B 生成对比",
+      "description": "对比从零训练小模型和微调大模型的生成效果",
+      "config": {
+        "mini_model": "41M Transformer",
+        "large_model": "Qwen2.5-1.5B QLoRA",
+        "test_prompts": 20
+      },
+      "results": {
+        "mini_41m": {
+          "response_rate": "15%",
+          "quality": "大部分为空，少数是对话格式"
+        },
+        "qwen_1_5b": {
+          "response_rate": "70%",
+          "quality": "有内容，但存在重复和乱码"
+        }
+      },
+      "conclusion": "41M 小模型表达能力有限，大模型微调效果更好"
+    }
+  ],
+  "perplexity": {
+    "model": "outputs/dpo/ckpt_final.pt",
+    "ppl": 13.03
+  },
+  "timestamp": "2026-06-05"
+}

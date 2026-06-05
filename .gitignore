@@ -1,0 +1,30 @@
+# 训练数据（需自行下载）
+data/
+
+# 模型 checkpoint
+outputs/
+
+# Tokenizer 训练中间文件
+tokenizer/*.model
+tokenizer/*.vocab
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+.pytest_cache/
+
+# IDE
+.vscode/
+.idea/
+.claude/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+wandb/
+
+# Editable install
+*.egg-info/

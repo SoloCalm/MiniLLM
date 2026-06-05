@@ -1,0 +1,5 @@
+{
+  "model": "outputs/dpo/ckpt_final.pt",
+  "ppl": 13.029727134097989,
+  "max_batches": 100
+}

@@ -1,0 +1,18 @@
+{
+    "_comment": "路线 B：Qwen2.5-1.5B QLoRA 微调配置",
+    "base_model": "Qwen/Qwen2.5-1.5B",
+    "sft_lr": 2e-4,
+    "sft_epochs": 3,
+    "sft_batch_size": 4,
+    "sft_grad_accum": 4,
+    "sft_max_length": 512,
+    "lora_rank": 16,
+    "lora_alpha": 32,
+    "lora_dropout": 0.05,
+    "lora_target_modules": ["q_proj", "k_proj", "v_proj", "o_proj", "gate_proj", "up_proj", "down_proj"],
+    "quantization": "nf4",
+    "double_quant": true,
+    "log_interval": 50,
+    "save_interval": 500,
+    "eval_interval": 500
+}
