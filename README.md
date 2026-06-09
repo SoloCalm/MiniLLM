@@ -8,7 +8,7 @@
 
 ## 双轨并行
 
-| 维度 | 自研 MiniLLM 41M | Qwen2.5-1.5B QLoRA |
+| 维度 | 自研 MiniLLM 38M | Qwen2.5-1.5B QLoRA |
 |------|------------------|---------------------|
 | **架构** | 手写 LLaMA2 风格 | HuggingFace Transformers |
 | **参数量** | ~38M | 1.55B |
@@ -65,7 +65,7 @@
 | DPO Reward Margin（β=0.2） | 0.2236 |
 | LoRA r=8 可训练参数 | 887,808（2.28%） |
 | 显存占用 | 1.05-1.27 GB |
-| 消融实验 | 5 组（学习率 / LoRA rank / 全参 vs LoRA / DPO β / 41M vs 1.5B） |
+| 消融实验 | 5 组（学习率 / LoRA rank / 全参 vs LoRA / DPO β / 38M vs 1.5B） |
 
 ### QLoRA 基线 — Qwen2.5-1.5B-Instruct
 
@@ -313,7 +313,7 @@ MiniLLM/
 │   ├── run_lora_rank_ablation.py
 │   ├── run_ft_vs_lora.py
 │   ├── run_qlora_baseline.py
-│   ├── compare_models.py   #   41M vs 1.5B 生成对比
+│   ├── compare_models.py   #   38M vs 1.5B 生成对比
 │   ├── kv_cache_benchmark.py
 │   ├── serve_vllm.py       #   vLLM 服务部署
 │   ├── smoke_vllm.py       #   vLLM 服务验证
@@ -413,11 +413,11 @@ MiniLLM/
 
 **结论：** β=0.2 是平衡点，margin 适中，loss 较低。
 
-### 5. 模型规模对比：41M vs 1.5B
+### 5. 模型规模对比：38M vs 1.5B
 
 | 模型 | 回复率 | 质量 |
 |------|--------|------|
-| MiniLLM 41M | 15% | 大部分为空，表达能力有限 |
+| MiniLLM 38M | 15% | 大部分为空，表达能力有限 |
 | Qwen2.5-1.5B QLoRA | 70% | 有内容，但存在重复 |
 
 **结论：** 大模型 + QLoRA 微调效果显著更好。

@@ -2,12 +2,12 @@
 
 Dual-track LLM training project on a single **RTX 4050 6GB** GPU:
 
-- **Track A (Self-built 41M):** Hand-written LLaMA2-style Transformer → Pretrain → SFT → LoRA → DPO
+- **Track A (Self-built 38M):** Hand-written LLaMA2-style Transformer → Pretrain → SFT → LoRA → DPO
 - **Track B (Qwen2.5-1.5B):** QLoRA fine-tuning → vLLM service deployment
 
 ## Key Results
 
-### Track A — Self-built 41M
+### Track A — Self-built 38M
 
 | Metric | Value |
 |--------|-------|
@@ -16,7 +16,7 @@ Dual-track LLM training project on a single **RTX 4050 6GB** GPU:
 | Perplexity | 13.03 |
 | DPO Reward Margin (β=0.2) | 0.2236 |
 | LoRA r=8 Trainable Params | 887,808 (2.28%) |
-| Ablation Experiments | 5 (LR / LoRA rank / FT vs LoRA / DPO β / 41M vs 1.5B) |
+| Ablation Experiments | 5 (LR / LoRA rank / FT vs LoRA / DPO β / 38M vs 1.5B) |
 
 ### Track B — Qwen2.5-1.5B QLoRA
 
@@ -69,11 +69,11 @@ Complete experiment results are available in the `results/` directory.
 
 **Conclusion:** β=0.2 is the sweet spot with moderate margin and low loss.
 
-### 5. Model Size: 41M vs 1.5B
+### 5. Model Size: 38M vs 1.5B
 
 | Model | Response Rate | Quality |
 |-------|--------------|---------|
-| MiniLLM 41M | 15% | Mostly empty, limited expressiveness |
+| MiniLLM 38M | 15% | Mostly empty, limited expressiveness |
 | Qwen2.5-1.5B QLoRA | 70% | Has content but with repetition |
 
 **Conclusion:** Larger models with QLoRA fine-tuning produce significantly better results.
@@ -279,7 +279,7 @@ MiniLLM/
 │   ├── run_lora_rank_ablation.py
 │   ├── run_ft_vs_lora.py
 │   ├── run_qlora_baseline.py
-│   ├── compare_models.py   #   41M vs 1.5B generation comparison
+│   ├── compare_models.py   #   38M vs 1.5B generation comparison
 │   ├── kv_cache_benchmark.py
 │   ├── serve_vllm.py       #   vLLM service deployment
 │   ├── smoke_vllm.py       #   vLLM service verification
