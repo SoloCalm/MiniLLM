@@ -78,6 +78,74 @@
 
 ---
 
+## 迁移链路 — Qwen2.5-1.5B QLoRA
+
+### 基座模型
+
+| 配置 | 值 |
+|------|-----|
+| 模型 | Qwen/Qwen2.5-1.5B（1.55B 参数） |
+| 量化 | 4-bit NF4（BitsAndBytes） |
+| 双重量化 | 启用（进一步压缩） |
+| 计算精度 | bfloat16 |
+
+### LoRA 配置
+
+| 配置 | 值 |
+|------|-----|
+| rank | 16 |
+| alpha | 32 |
+| dropout | 0.05 |
+| target_modules | q_proj, k_proj, v_proj, o_proj, gate_proj, up_proj, down_proj |
+| bias | none |
+| task_type | CAUSAL_LM |
+
+### 训练配置
+
+| 配置 | 值 |
+|------|-----|
+| 训练数据 | firefly-train-1.1M（100k 条） |
+| batch_size | 4 |
+| gradient_accumulation | 4 |
+| learning_rate | 2e-4 |
+| epochs | 1 |
+| max_length | 512 |
+| warmup_ratio | 0.03 |
+| 优化器 | paged_adamw_8bit |
+| 梯度检查点 | 启用 |
+
+### 部署配置
+
+| 配置 | 值 |
+|------|-----|
+| 服务框架 | vLLM |
+| 注意力机制 | PagedAttention |
+| 量化格式 | GPTQ/AWQ |
+| API 兼容 | OpenAI 格式 |
+
+### 运行命令
+
+```bash
+# 训练 QLoRA
+python scripts/4_qlora.py \
+    --model-name Qwen/Qwen2.5-1.5B \
+    --data-path data/firefly-train-1.1M/firefly-train-1.1M.jsonl \
+    --max-lines 100000 \
+    --epochs 1 \
+    --batch-size 4 \
+    --lr 2e-4 \
+    --lora-r 16 \
+    --lora-alpha 32
+
+# 启动 vLLM 服务
+python scripts/serve_vllm.py
+
+# 验证服务
+python scripts/smoke_vllm.py
+```
+
+---
+
 ## 详细文档
 
 | 文档 | 说明 |
