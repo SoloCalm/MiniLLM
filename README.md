@@ -209,6 +209,10 @@ hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
 hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
                 filename='dpo.jsonl', local_dir='data/minimind_dataset')
 
+# Firefly 数据集（QLoRA 微调用）
+hf_hub_download(repo_id='YeungNLP/firefly-train-1.1M', repo_type='dataset',
+                filename='firefly-train-1.1M.jsonl', local_dir='data/firefly-train-1.1M')
+
 print('数据下载完成')
 "
 ```
