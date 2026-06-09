@@ -18,7 +18,12 @@ from pathlib import Path
 
 import torch
 from torch.utils.data import DataLoader
-import wandb
+
+try:
+    import wandb
+    HAS_WANDB = True
+except ImportError:
+    HAS_WANDB = False
 
 from model.config import ModelConfig
 from model.modeling_llm import MiniLLM
@@ -161,7 +166,7 @@ def main():
     # ============================================================
     # Wandb 初始化
     # ============================================================
-    if args.wandb_project:
+    if args.wandb_project and HAS_WANDB:
         wandb.init(
             project=args.wandb_project,
             config={
@@ -254,7 +259,7 @@ def main():
                 print(f"step {step}/{args.max_steps} | loss: {avg_loss:.4f} | {elapsed:.1f}s | 总耗时: {total_elapsed/60:.1f}min | 预计剩余: {eta_hours:.1f}h")
 
                 # Wandb 记录
-                if args.wandb_project:
+                if args.wandb_project and HAS_WANDB:
                     wandb.log({
                         "train/loss": avg_loss,
                         "train/step_time": elapsed / args.log_interval,
@@ -300,7 +305,7 @@ def main():
     print(f"训练完成！总耗时: {hours}h {minutes}m {seconds}s | 共 {step} 步 | 最终模型: {final_path}")
 
     # 结束 Wandb
-    if args.wandb_project:
+    if args.wandb_project and HAS_WANDB:
         wandb.finish()
 
 

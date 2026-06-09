@@ -17,7 +17,6 @@ from pathlib import Path
 import torch
 import torch.nn.functional as F
 import sentencepiece as spm
-import wandb
 
 from model.config import ModelConfig
 from model.modeling_llm import MiniLLM
@@ -87,7 +86,6 @@ def main():
     parser.add_argument("--warmup-ratio", type=float, default=0.03)  # warmup 比例（3%）
     parser.add_argument("--log-interval", type=int, default=50)
     parser.add_argument("--save-interval", type=int, default=500)
-    parser.add_argument("--wandb-project", type=str, default=None)
     parser.add_argument("--max-lines", type=int, default=None)       # 限制加载行数
     parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
     args = parser.parse_args()
