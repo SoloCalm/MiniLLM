@@ -200,16 +200,7 @@ python scripts/3_sft.py \
     --data-path data/minimind_dataset/lora_identity.jsonl
 ```
 
-### 6. LoRA Fine-tuning
-
-```bash
-python scripts/3_sft.py \
-    --pretrained-path outputs/pretrained/ckpt_final.pt \
-    --data-path data/minimind_dataset/lora_identity.jsonl \
-    --use-lora --lora-rank 8 --lora-alpha 16
-```
-
-### 7. DPO Alignment
+### 6. DPO Alignment
 
 ```bash
 python scripts/5_dpo.py \
@@ -217,13 +208,19 @@ python scripts/5_dpo.py \
     --data-path data/minimind_dataset/dpo.jsonl
 ```
 
-### 9. QLoRA Baseline (Qwen2.5-1.5B)
+### 7. QLoRA Baseline (Qwen2.5-1.5B)
 
 ```bash
 python scripts/4_qlora.py
 ```
 
-### 10. Evaluation
+### (Optional) LoRA Comparison Experiment
+
+```bash
+python scripts/run_ft_vs_lora.py
+```
+
+### 8. Evaluation
 
 ```bash
 # Perplexity
@@ -235,7 +232,7 @@ python eval/benchmark.py \
     --labels Pretrain SFT DPO
 ```
 
-### 11. Deployment
+### 9. Deployment
 
 ```bash
 # Export to HuggingFace format

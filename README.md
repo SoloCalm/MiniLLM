@@ -240,19 +240,16 @@ python scripts/3_sft.py \
     --pretrained-path outputs/pretrained/ckpt_final.pt \
     --data-path data/minimind_dataset/lora_identity.jsonl
 
-# 步骤 6：LoRA 微调
-python scripts/3_sft.py \
-    --pretrained-path outputs/pretrained/ckpt_final.pt \
-    --data-path data/minimind_dataset/lora_identity.jsonl \
-    --use-lora --lora-rank 8 --lora-alpha 16
-
-# 步骤 7：DPO 偏好对齐
+# 步骤 6：DPO 偏好对齐
 python scripts/5_dpo.py \
     --sft-path outputs/sft/ckpt_final.pt \
     --data-path data/minimind_dataset/dpo.jsonl
 
-# 步骤 8：QLoRA 基线（Qwen2.5-1.5B）
+# 步骤 7：QLoRA 基线（Qwen2.5-1.5B）
 python scripts/4_qlora.py
+
+# （可选）LoRA 对比实验
+python scripts/run_ft_vs_lora.py
 ```
 
 ### 评估
