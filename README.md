@@ -185,54 +185,74 @@ cd MiniLLM
 pip install -e ".[all]"
 ```
 
-### 验证
+### 数据下载
 
 ```bash
-python scripts/smoke_test.py
+# 创建数据目录
+mkdir -p data
+
+# 下载 MiniMind 数据集（预训练 + SFT + DPO）
+pip install huggingface_hub
+
+python -c "
+from huggingface_hub import hf_hub_download
+import os
+
+# 预训练数据
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='pretrain_t2t_mini.jsonl', local_dir='data')
+
+# SFT 数据
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='sft_t2t_mini.jsonl', local_dir='data/minimind_dataset')
+
+# LoRA 身份数据
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='lora_identity.jsonl', local_dir='data/minimind_dataset')
+
+# DPO 偏好数据
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='dpo.jsonl', local_dir='data/minimind_dataset')
+
+print('数据下载完成')
+"
 ```
 
-### 数据准备
+### 训练流程（按顺序执行）
 
 ```bash
-# 下载数据集（MiniMind）
-# 参考 data/minimind_dataset/README.md
-
-# 预 tokenize（解决 OOM 问题）
-python scripts/tokenize_to_disk.py
-```
-
-### 训练流程
-
-```bash
-# 步骤 1：训练 Tokenizer
+# 步骤 1：训练 Tokenizer（用预训练语料训练 BPE 分词器）
 python scripts/1_train_tokenizer.py
 
-# 步骤 2：Smoke Test（100 步验证）
+# 步骤 2：预 tokenize 到磁盘（解决大数据集 OOM 问题）
+python scripts/tokenize_to_disk.py
+
+# 步骤 3：Smoke Test（100 步验证代码正确性）
 python scripts/2_pretrain.py \
     --tokenized-data data/pretrain_tokenized/train_ids.npy \
     --max-steps 100 --batch-size 8 --log-interval 10
 
-# 步骤 3：正式预训练（50,000 步）
+# 步骤 4：正式预训练（50,000 步）
 python scripts/2_pretrain.py \
     --tokenized-data data/pretrain_tokenized/train_ids.npy
 
-# 步骤 4：SFT 微调
+# 步骤 5：SFT 微调
 python scripts/3_sft.py \
     --pretrained-path outputs/pretrained/ckpt_final.pt \
     --data-path data/minimind_dataset/lora_identity.jsonl
 
-# 步骤 5：LoRA 微调
+# 步骤 6：LoRA 微调
 python scripts/3_sft.py \
     --pretrained-path outputs/pretrained/ckpt_final.pt \
     --data-path data/minimind_dataset/lora_identity.jsonl \
     --use-lora --lora-rank 8 --lora-alpha 16
 
-# 步骤 6：DPO 偏好对齐
+# 步骤 7：DPO 偏好对齐
 python scripts/5_dpo.py \
     --sft-path outputs/sft/ckpt_final.pt \
-    --data-path data/ultrafeedback_binarized/train.jsonl
+    --data-path data/minimind_dataset/dpo.jsonl
 
-# 步骤 7：QLoRA 基线（Qwen2.5-1.5B）
+# 步骤 8：QLoRA 基线（Qwen2.5-1.5B）
 python scripts/4_qlora.py
 ```
 

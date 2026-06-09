@@ -136,28 +136,45 @@ MiniLLM is an advanced project based on MiniMind, with significant improvements:
 ### Prerequisites
 
 ```bash
+git clone https://github.com/SoloCalm/MiniLLM.git
+cd MiniLLM
 pip install -e ".[all]"
 ```
 
-### 1. Smoke Test (Verify Environment)
+### Download Data
 
 ```bash
-python scripts/smoke_test.py
+mkdir -p data
+pip install huggingface_hub
+
+python -c "
+from huggingface_hub import hf_hub_download
+
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='pretrain_t2t_mini.jsonl', local_dir='data')
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='sft_t2t_mini.jsonl', local_dir='data/minimind_dataset')
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='lora_identity.jsonl', local_dir='data/minimind_dataset')
+hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
+                filename='dpo.jsonl', local_dir='data/minimind_dataset')
+print('Data download complete')
+"
 ```
 
-### 2. Train Tokenizer
+### 1. Train Tokenizer
 
 ```bash
 python scripts/1_train_tokenizer.py
 ```
 
-### 3. Pre-tokenize Data (Solves OOM)
+### 2. Pre-tokenize Data (Solves OOM)
 
 ```bash
 python scripts/tokenize_to_disk.py
 ```
 
-### 4. Smoke Pretrain (100 steps)
+### 3. Smoke Pretrain (100 steps)
 
 ```bash
 python scripts/2_pretrain.py \
@@ -165,14 +182,14 @@ python scripts/2_pretrain.py \
     --max-steps 100 --batch-size 8 --log-interval 10
 ```
 
-### 5. Full Pretraining
+### 4. Full Pretraining
 
 ```bash
 python scripts/2_pretrain.py \
     --tokenized-data data/pretrain_tokenized/train_ids.npy
 ```
 
-### 6. SFT Fine-tuning
+### 5. SFT Fine-tuning
 
 ```bash
 python scripts/3_sft.py \
@@ -180,7 +197,7 @@ python scripts/3_sft.py \
     --data-path data/minimind_dataset/lora_identity.jsonl
 ```
 
-### 7. LoRA Fine-tuning
+### 6. LoRA Fine-tuning
 
 ```bash
 python scripts/3_sft.py \
@@ -189,12 +206,12 @@ python scripts/3_sft.py \
     --use-lora --lora-rank 8 --lora-alpha 16
 ```
 
-### 8. DPO Alignment
+### 7. DPO Alignment
 
 ```bash
 python scripts/5_dpo.py \
     --sft-path outputs/sft/ckpt_final.pt \
-    --data-path data/ultrafeedback_binarized/train.jsonl
+    --data-path data/minimind_dataset/dpo.jsonl
 ```
 
 ### 9. QLoRA Baseline (Qwen2.5-1.5B)
