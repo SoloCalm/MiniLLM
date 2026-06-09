@@ -28,31 +28,22 @@ class MiniLLM(nn.Module):
         super().__init__()
         self.config = config
 
-        # TODO: 创建 5 个组件
-        # 1. tok_emb: nn.Embedding(vocab_size, hidden_size)
-        # 2. layers: nn.ModuleList of TransformerBlock(config, i) for i in range(num_layers)
-        # 3. norm: RMSNorm(hidden_size, rms_norm_eps)
-        # 4. lm_head: nn.Linear(hidden_size, vocab_size, bias=False)
-        # 5. rope: RotaryEmbedding(head_dim, max_seq_len, rope_theta)
-        
-        #1.注释：Token Embedding 层，将 token ids 转换为 hidden_size 维的向量表示
+        # 1. Token Embedding 层，将 token ids 转换为 hidden_size 维的向量表示
         self.tok_emb = nn.Embedding(config.vocab_size, config.hidden_size)
         
-        #2.注释：TransformerBlock 层，每个层包含一个 Self-Attention 层和一个 FeedForward 层
+        # 2. TransformerBlock 层，每个层包含一个 Self-Attention 层和一个 FeedForward 层
         self.layers = nn.ModuleList([TransformerBlock(config, i) for i in range(config.num_layers)])
         
-        #3.注释：RMSNorm 层，对 TransformerBlock 输出进行归一化
+        # 3. RMSNorm 层，对 TransformerBlock 输出进行归一化
         self.norm = RMSNorm(config.hidden_size, config.rms_norm_eps)
 
-        #4.注释：LM Head 层，将归一化后的 hidden_size 维向量转换为 vocab_size 维的概率分布
+        # 4. LM Head 层，将归一化后的 hidden_size 维向量转换为 vocab_size 维的概率分布
         self.lm_head = nn.Linear(config.hidden_size, config.vocab_size, bias=False)
         
-        #5.注释：Rotary Embedding 层，用于计算 RoPE 频率
+        # 5. Rotary Embedding 层，用于计算 RoPE 频率
         self.rope = RotaryEmbedding(config.head_dim, config.max_seq_len, config.rope_theta)
 
-        # TODO: 权重绑定 — lm_head 和 tok_emb 共享权重
-        # 提示: self.lm_head.weight = self.tok_emb.weight
-        # 好处: 减少 ~3.3M 参数，embedding 层学到的语义直接用于输出
+        # 权重绑定：lm_head 和 tok_emb 共享权重，减少 ~3.3M 参数
         self.lm_head.weight = self.tok_emb.weight
 
     def forward(
@@ -78,41 +69,22 @@ class MiniLLM(nn.Module):
         """
         batch_size, seq_len = input_ids.shape
 
-        # 步骤 1: Token Embedding
-        # TODO: x = self.tok_emb(input_ids)
-        
-        #1.注释：将 token ids 转换为 hidden_size 维的向量表示
+        # 1. Token Embedding：将 token ids 转换为 hidden_size 维的向量表示
         x = self.tok_emb(input_ids)
 
-        # 步骤 2: RoPE 频率
-        # 需要考虑 KV Cache 中已有的长度作为偏移
-        # TODO:
-        # if kv_cache is not None:
-        #     cache_len = kv_cache.get_seq_length(0)
-        # else:
-        #     cache_len = 0
-        # freqs = self.rope(cache_len + seq_len)
-        # freqs = freqs[cache_len:]  # 只取当前 token 对应的频率
-        
+        # 2. 计算 RoPE 频率（需要考虑 KV Cache 中已有的长度作为偏移）
         if kv_cache is not None:
             cache_len = kv_cache.get_seq_length(0)
         else:
             cache_len = 0
         freqs = self.rope(cache_len + seq_len)
         freqs = freqs[cache_len:]  # 只取当前 token 对应的频率
-        
-        # 步骤 3: 逐层经过 TransformerBlock
-        # TODO: for layer in self.layers: x = layer(x, freqs, kv_cache)
-        
+
+        # 3. 逐层经过 TransformerBlock
         for layer in self.layers:
             x = layer(x, freqs, kv_cache)
-        
-        # 步骤 4-5: RMSNorm + LM Head
-        # TODO: x = self.norm(x)
-        #       logits = self.lm_head(x)
-        #       return logits
 
-        #4.1注释：对 TransformerBlock 输出进行归一化，准备输入 LM Head 层
+        # 4. 最终 RMSNorm + LM Head
         x = self.norm(x)
         logits = self.lm_head(x)
         return logits

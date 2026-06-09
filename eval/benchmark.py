@@ -53,7 +53,7 @@ def load_model(checkpoint_path: str, device: str = "cuda"):
     """加载模型"""
     config = ModelConfig()
     model = MiniLLM(config)
-    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
+    ckpt = torch.load(checkpoint_path, map_location=device, weights_only=True)
     model.load_state_dict(ckpt["model"])
     model = model.to(device).eval()
     return model
@@ -181,6 +181,7 @@ def main():
     parser.add_argument("--output", type=str, default=None, help="输出 JSON 路径")
     parser.add_argument("--max-new-tokens", type=int, default=100)
     parser.add_argument("--temperature", type=float, default=0.7)
+    parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
     args = parser.parse_args()
 
     device = "cuda" if torch.cuda.is_available() else "cpu"
@@ -188,7 +189,7 @@ def main():
 
     # 加载 tokenizer
     tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load("tokenizer/bpe.model")
+    tokenizer.Load(args.tokenizer_path)
 
     # 确定标签
     labels = args.labels

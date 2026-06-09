@@ -48,8 +48,26 @@ def test_attention_output_shape():
 def test_kv_cache():
     """测试 KV Cache 更新"""
     cache = KVCache()
-    # TODO: 测试 KV Cache 的 update 和 get_seq_length
-    print("[PASS] test_kv_cache (placeholder)")
+
+    # 测试初始状态
+    assert cache.get_seq_length(0) == 0
+
+    # 模拟第一层的 K,V
+    layer_idx = 0
+    k1 = torch.randn(1, 1, 4, 64)  # (batch=1, seq=1, kv_heads=4, head_dim=64)
+    v1 = torch.randn(1, 1, 4, 64)
+    k_full, v_full = cache.update(layer_idx, k1, v1)
+    assert cache.get_seq_length(layer_idx) == 1
+    assert k_full.shape == (1, 1, 4, 64)
+
+    # 追加第二个 token
+    k2 = torch.randn(1, 1, 4, 64)
+    v2 = torch.randn(1, 1, 4, 64)
+    k_full, v_full = cache.update(layer_idx, k2, v2)
+    assert cache.get_seq_length(layer_idx) == 2
+    assert k_full.shape == (1, 2, 4, 64)
+
+    print("[PASS] test_kv_cache")
 
 
 if __name__ == "__main__":

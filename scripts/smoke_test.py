@@ -64,7 +64,7 @@ def check_model(checkpoint_path: str):
     model = MiniLLM(config)
 
     if Path(checkpoint_path).exists():
-        ckpt = torch.load(checkpoint_path, map_location=device, weights_only=False)
+        ckpt = torch.load(checkpoint_path, map_location=device, weights_only=True)
         model.load_state_dict(ckpt["model"])
         print(f"  ✅ checkpoint 加载成功")
     else:

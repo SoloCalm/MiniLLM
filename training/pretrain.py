@@ -148,6 +148,7 @@ def main():
     parser.add_argument("--tokenized-data", type=Path, default=None) # 预 tokenize 的 .npy 文件路径（推荐）
     parser.add_argument("--resume", type=Path, default=None)         # 从 checkpoint 恢复训练
     parser.add_argument("--wandb-project", type=str, default=None)   # Wandb 项目名（None=不启用）
+    parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
     args = parser.parse_args()
 
     # ============================================================
@@ -190,7 +191,7 @@ def main():
         print("警告: 使用实时 tokenize，大数据集可能 OOM，建议先运行 scripts/tokenize_to_disk.py")
         import sentencepiece as spm
         tokenizer = spm.SentencePieceProcessor()
-        tokenizer.Load("tokenizer/bpe.model")
+        tokenizer.Load(args.tokenizer_path)
         print(f"词表大小: {tokenizer.GetPieceSize()}")
         train_dataset = PretrainDataset(args.data_path, tokenizer, args.max_length, args.max_lines)
 
@@ -217,7 +218,7 @@ def main():
     step = 0          # 当前训练步数
     if args.resume:
         print(f"从 checkpoint 恢复: {args.resume}")
-        checkpoint = torch.load(args.resume, map_location=device, weights_only=False)
+        checkpoint = torch.load(args.resume, map_location=device, weights_only=True)
         model.load_state_dict(checkpoint["model"])
         if "optimizer" in checkpoint:
             optimizer.load_state_dict(checkpoint["optimizer"])

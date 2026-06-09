@@ -19,6 +19,9 @@ __pycache__/
 .idea/
 .claude/
 
+# 个人使用文件（面试准备、学习路径等）
+docs/career/
+
 # OS
 .DS_Store
 Thumbs.db

@@ -40,9 +40,6 @@ def train_one_step(model, batch, optimizer, config):
     5. 更新参数
     6. 清零梯度
     """
-    # TODO: 你的代码（和 pretrain.py 的 train_one_step 一样，改一行）
-    # 提示：cross_entropy 的 ignore_index 改为 -100（不是 0）
-
     # 第一步：前向传播（算预测结果）
     logits = model(batch["input_ids"])
 
@@ -92,17 +89,12 @@ def main():
     parser.add_argument("--save-interval", type=int, default=500)
     parser.add_argument("--wandb-project", type=str, default=None)
     parser.add_argument("--max-lines", type=int, default=None)       # 限制加载行数
+    parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
     args = parser.parse_args()
 
     # ============================================================
     # 步骤 1 - 加载预训练模型
     # ============================================================
-    # TODO: 创建模型 + 从 checkpoint 加载权重
-    # 提示：
-    # config = ModelConfig()
-    # model = MiniLLM(config)
-    # ckpt = torch.load(args.pretrained_path, map_location=device, weights_only=False)
-    # model.load_state_dict(ckpt["model"])
     config = ModelConfig()  # 创建配置对象
     model = MiniLLM(config)  # 根据配置创建模型
 
@@ -112,7 +104,7 @@ def main():
 
     # 从预训练 checkpoint 加载权重
     print(f"加载预训练模型: {args.pretrained_path}")
-    ckpt = torch.load(args.pretrained_path, map_location=device, weights_only=False)
+    ckpt = torch.load(args.pretrained_path, map_location=device, weights_only=True)
     model.load_state_dict(ckpt["model"])
     model = model.to(device)  # 把模型搬到 GPU
     print(f"模型参数量: {model.count_parameters() / 1e6:.1f}M")
@@ -122,7 +114,7 @@ def main():
     # ============================================================
     # 加载 tokenizer（把文字转成 token ids 的工具）
     tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load("tokenizer/bpe.model")
+    tokenizer.Load(args.tokenizer_path)
 
     # 创建 SFT 数据集（处理对话数据，构造 labels mask）
     train_dataset = SFTDataset(args.data_path, tokenizer, args.max_length, args.max_lines)

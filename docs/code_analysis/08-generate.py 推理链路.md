@@ -1,21 +1,10 @@
-"""
-交互式命令行对话
+# 08-generate.py 推理链路
 
-用法：
-    python inference/chat.py --checkpoint outputs/dpo/ckpt_final.pt
-"""
+## 逐段源码与解析
 
-import sys
-from pathlib import Path
-sys.path.insert(0, str(Path(__file__).parent.parent))
+### 1. 模型加载 Load Model (L19-29)
 
-import torch
-import sentencepiece as spm
-
-from model.config import ModelConfig
-from model.modeling_llm import MiniLLM
-
-
+```python
 def load_model(checkpoint_path: str, device: str = "cuda"):
     """加载模型"""
     config = ModelConfig()
@@ -27,8 +16,13 @@ def load_model(checkpoint_path: str, device: str = "cuda"):
     model.eval()
 
     return model
+```
 
+---
 
+### 2. 生成回答 Generate Response (L32-71)
+
+```python
 def generate_response(
     model: MiniLLM,
     tokenizer,
@@ -69,8 +63,28 @@ def generate_response(
         response = "(模型未生成回答)"
 
     return response
+```
 
+**推理流程：**
+```
+用户输入: "你好"
+    ↓
+Tokenize: [101, 102]
+    ↓
+添加特殊 token: [1, 101, 102, 2]
+    ↓
+模型生成: [1, 101, 102, 2, 201, 202, 301, 302, 2]
+    ↓
+提取回答: [201, 202, 301, 302]
+    ↓
+Detokenize: "你好！有什么我可以帮助你的吗？"
+```
 
+---
+
+### 3. 交互式对话 Chat Loop (L74-110)
+
+```python
 def chat_loop(model, tokenizer, max_new_tokens: int = 256, temperature: float = 0.7):
     """交互式对话循环（保留最近 5 轮历史）"""
     print("=" * 50)
@@ -107,26 +121,76 @@ def chat_loop(model, tokenizer, max_new_tokens: int = 256, temperature: float = 
         print(f"助手: {response}")
 
         history.append((user_input, response))
+```
 
+**多轮对话示例：**
+```
+历史:
+    user: 你好
+    assistant: 你好！有什么我可以帮助你的吗？
+    user: 今天天气怎么样？
+    assistant: 今天天气很好，阳光明媚。
 
-if __name__ == "__main__":
-    import argparse
+构造 prompt:
+    你好\n你好！有什么我可以帮助你的吗？\n今天天气怎么样？\n今天天气很好，阳光明媚。\n最近有什么新闻？
 
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--checkpoint", type=str, required=True, help="模型 checkpoint 路径")
-    parser.add_argument("--max-new-tokens", type=int, default=256)
-    parser.add_argument("--temperature", type=float, default=0.7)
-    parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
-    args = parser.parse_args()
+模型生成回答
+```
 
-    device = "cuda" if torch.cuda.is_available() else "cpu"
-    print(f"设备: {device}")
+---
 
-    tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load(args.tokenizer_path)
+## 推理参数详解
 
-    print(f"加载模型: {args.checkpoint}")
-    model = load_model(args.checkpoint, device)
-    print("模型加载完成")
+### 1. Temperature
+- **temperature=0**：贪心解码，每次选概率最高的 token
+- **temperature=0.7**：适度随机，生成更自然
+- **temperature>1**：更随机，可能生成不相关内容
 
-    chat_loop(model, tokenizer, args.max_new_tokens, args.temperature)
+### 2. Top-K
+- 只从概率最高的 K 个 token 中采样
+- 过滤掉概率很低的 token
+- 避免生成不相关的内容
+
+### 3. Top-P (Nucleus Sampling)
+- 从累积概率超过 P 的最小 token 集合中采样
+- 动态调整候选 token 数量
+- 比 Top-K 更灵活
+
+### 4. 推荐参数
+```python
+temperature=0.7  # 适度随机
+top_p=0.9        # 过滤掉概率最低的 10%
+top_k=50         # 只从 top 50 中采样
+```
+
+---
+
+## KV Cache 加速推理
+
+### 不使用 KV Cache
+```python
+# 每次都用完整序列前向传播
+for _ in range(max_new_tokens):
+    logits = model(generated)  # O(n²) 复杂度
+    next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)
+    generated = torch.cat([generated, next_token], dim=1)
+```
+
+### 使用 KV Cache
+```python
+# 只传最后一个 token，利用缓存的 K/V
+kv_cache = KVCache()
+for _ in range(max_new_tokens):
+    logits = model(generated[:, -1:], kv_cache)  # O(n) 复杂度
+    next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)
+    generated = torch.cat([generated, next_token], dim=1)
+```
+
+**加速效果：**
+```
+生成 100 个 token：
+- 不用 KV Cache：100 次完整前向传播
+- 用 KV Cache：1 次完整前向传播 + 99 次单 token 前向传播
+
+加速比：约 10-100 倍
+```

@@ -33,8 +33,8 @@ def export_to_huggingface(checkpoint_path: str, output_dir: str):
     config = ModelConfig()
     model = MiniLLM(config)
 
-    # checkpoint 包含 model state_dict 和 config，需要 weights_only=False
-    ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+    # checkpoint 包含 model state_dict 和 config
+    ckpt = torch.load(checkpoint_path, map_location="cpu", weights_only=True)
     model.load_state_dict(ckpt["model"])
     model.eval()
     print(f"模型参数量: {model.count_parameters() / 1e6:.1f}M")

@@ -47,7 +47,7 @@ def load_mini_model(ckpt_path, device):
     config = ModelConfig()
     model = MiniLLM(config)
 
-    ckpt = torch.load(ckpt_path, map_location=device, weights_only=False)
+    ckpt = torch.load(ckpt_path, map_location=device, weights_only=True)
     model.load_state_dict(ckpt["model"])
     model = model.to(device)
     model.eval()
@@ -152,12 +152,17 @@ def generate_qwen_response(model, tokenizer, prompt, max_new_tokens=100, device=
 
 
 def main():
+    import argparse
+    parser = argparse.ArgumentParser(description="41M vs 1.5B 生成效果对比")
+    parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
+    args = parser.parse_args()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"设备: {device}")
 
     # 加载 tokenizer
     tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load("tokenizer/bpe.model")
+    tokenizer.Load(args.tokenizer_path)
 
     # 加载 41M 模型
     print("\n加载 41M 模型...")

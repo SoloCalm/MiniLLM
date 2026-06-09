@@ -173,6 +173,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=2)
     parser.add_argument("--max-length", type=int, default=512)
     parser.add_argument("--log-interval", type=int, default=50)
+    parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
     args = parser.parse_args()
 
     import copy
@@ -192,7 +193,7 @@ def main():
     # 加载 SFT 权重
     # SFT 模型已经学会了基本的对话能力，DPO 在此基础上学习偏好
     print(f"加载 SFT 模型: {args.sft_path}")
-    ckpt = torch.load(args.sft_path, map_location=device, weights_only=False)
+    ckpt = torch.load(args.sft_path, map_location=device, weights_only=True)
     model.load_state_dict(ckpt["model"])
     model = model.to(device)
     print(f"模型参数量: {model.count_parameters() / 1e6:.1f}M")
@@ -213,7 +214,7 @@ def main():
     # ============================================================
     # 加载 SentencePiece tokenizer
     tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load("tokenizer/bpe.model")
+    tokenizer.Load(args.tokenizer_path)
 
     # 创建 DPO 数据集
     # 每条数据包含 prompt、chosen、rejected

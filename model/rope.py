@@ -54,8 +54,7 @@ def precompute_rope_frequencies(dim: int, max_seq_len: int, theta: float = 10000
        → i=31: freq≈0.00158（最低频，很久才转一圈）
        freqs[m, i] = m * freq[i]：第 m 个位置在第 i 个频率上的旋转角度
     """
-    # TODO: 实现频率预计算
-     # 步骤 1: freq[i] = 1 / (theta ^ (2i / dim))
+    # 步骤 1: freq[i] = 1 / (theta ^ (2i / dim))
     #   arange(0, dim, 2) → [0, 2, 4, ..., dim-2]，只取偶数索引
     freq = 1.0 / (theta ** (torch.arange(0, dim, 2).float() / dim))
 

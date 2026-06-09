@@ -84,6 +84,7 @@ def main():
     parser = argparse.ArgumentParser(description="KV Cache 加速对比")
     parser.add_argument("--checkpoint", type=str, required=True, help="模型 checkpoint 路径")
     parser.add_argument("--max-new-tokens", type=int, default=50, help="生成 token 数")
+    parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
     args = parser.parse_args()
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -91,15 +92,15 @@ def main():
 
     # 加载 tokenizer
     tokenizer = spm.SentencePieceProcessor()
-    tokenizer.Load("tokenizer/bpe.model")
+    tokenizer.Load(args.tokenizer_path)
 
     # 加载模型
     print(f"加载模型: {args.checkpoint}")
     config = ModelConfig()
     model = MiniLLM(config)
 
-    # checkpoint 包含 model state_dict，需要 weights_only=False
-    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=False)
+    # checkpoint 包含 model state_dict
+    ckpt = torch.load(args.checkpoint, map_location=device, weights_only=True)
     model.load_state_dict(ckpt["model"])
     model = model.to(device)
     model.eval()

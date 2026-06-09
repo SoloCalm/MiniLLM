@@ -137,8 +137,8 @@ def main():
     config = ModelConfig()
     model = MiniLLM(config)
 
-    # checkpoint 包含 model state_dict，需要 weights_only=False
-    ckpt = torch.load(args.model_path, map_location=device, weights_only=False)
+    # checkpoint 包含 model state_dict
+    ckpt = torch.load(args.model_path, map_location=device, weights_only=True)
     model.load_state_dict(ckpt["model"])
     model = model.to(device)
     model.eval()
