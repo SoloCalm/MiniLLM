@@ -196,17 +196,12 @@ pip install huggingface_hub
 
 python -c "
 from huggingface_hub import hf_hub_download
-import os
 
 # 预训练数据
 hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
-                filename='pretrain_t2t_mini.jsonl', local_dir='data')
+                filename='pretrain_t2t_mini.jsonl', local_dir='data/minimind_dataset')
 
-# SFT 数据
-hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
-                filename='sft_t2t_mini.jsonl', local_dir='data/minimind_dataset')
-
-# LoRA 身份数据
+# LoRA 身份数据（SFT 用）
 hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
                 filename='lora_identity.jsonl', local_dir='data/minimind_dataset')
 

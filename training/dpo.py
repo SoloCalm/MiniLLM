@@ -165,7 +165,7 @@ def dpo_loss(
 def main():
     parser = argparse.ArgumentParser(description="DPO 偏好对齐")
     parser.add_argument("--sft-path", type=Path, required=True, help="SFT 模型路径")
-    parser.add_argument("--data-path", type=str, default="data/dpo/train.jsonl")
+    parser.add_argument("--data-path", type=str, default="data/minimind_dataset/dpo.jsonl")
     parser.add_argument("--output-dir", type=Path, default=Path("outputs/dpo"))
     parser.add_argument("--lr", type=float, default=5e-7)
     parser.add_argument("--epochs", type=int, default=2)

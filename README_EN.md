@@ -151,9 +151,7 @@ python -c "
 from huggingface_hub import hf_hub_download
 
 hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
-                filename='pretrain_t2t_mini.jsonl', local_dir='data')
-hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
-                filename='sft_t2t_mini.jsonl', local_dir='data/minimind_dataset')
+                filename='pretrain_t2t_mini.jsonl', local_dir='data/minimind_dataset')
 hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
                 filename='lora_identity.jsonl', local_dir='data/minimind_dataset')
 hf_hub_download(repo_id='jingyaogong/minimind_dataset', repo_type='dataset',
