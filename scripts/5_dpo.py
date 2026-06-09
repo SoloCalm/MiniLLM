@@ -13,7 +13,7 @@ DPO（Direct Preference Optimization）的核心：
 
 参数：
     --sft-path: SFT 模型路径（必填）
-    --data-path: DPO 数据路径（默认 data/dpo/train.jsonl）
+    --data-path: DPO 数据路径（默认 data/minimind_dataset/dpo.jsonl）
     --output-dir: 输出目录（默认 outputs/dpo）
     --lr: 学习率（默认 5e-7）
     --epochs: 训练轮数（默认 2）
