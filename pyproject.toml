@@ -1,11 +1,11 @@
 [build-system]
 requires = ["setuptools>=68.0", "wheel"]
-build-backend = "setuptools.backends._legacy:_Backend"
+build-backend = "setuptools.build_meta"
 
 [project]
 name = "minillm"
 version = "1.0.0"
-description = "单卡完整LLM训练流程：从零构建41M参数Transformer，完成预训练→SFT→LoRA→DPO→部署"
+description = "单卡完整LLM训练流程：从零构建38M参数Transformer，完成预训练→SFT→LoRA→DPO→部署"
 readme = "README.md"
 license = {text = "MIT"}
 requires-python = ">=3.10"

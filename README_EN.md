@@ -316,17 +316,17 @@ MiniLLM/
 │   └── dpo.json            #   DPO alignment
 │
 ├── docs/                   # Documentation
-│   ├── project_summary.md  #   Full project & experiment summary
-│   ├── architecture.md     #   Architecture diagrams + data flow
-│   ├── training_notes.md   #   PyTorch training tutorial
-│   └── dpo_theory.md       #   DPO theory + math derivation
+│   ├── 项目总结.md          #   Full project & experiment summary
+│   ├── 架构.md             #   Architecture diagrams + data flow
+│   ├── 训练笔记.md         #   PyTorch training tutorial
+│   ├── DPO理论.md          #   DPO theory + math derivation
+│   └── code_analysis/      #   11 core code analysis files
 │
 ├── results/                # Experiment results
 │   ├── ablation_results.json
 │   ├── lora_rank_ablation.json
 │   ├── ft_vs_lora_ablation.json
 │   ├── perplexity.json
-│   ├── model_comparison.txt
 │   └── compare/            #   Generation comparison outputs
 │
 ├── data/                   # Datasets (gitignored, download separately)
@@ -334,7 +334,7 @@ MiniLLM/
 ├── pyproject.toml
 ├── .gitignore
 ├── README.md
-└── README_CN.md
+└── README_EN.md
 ```
 
 ## Problem Solved: OOM During Pretraining
