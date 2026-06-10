@@ -1,4 +1,4 @@
-# MiniLLM：从零搭建一个能对话、能推理的完整 LLM 链路
+# MiniLLM：基于 LLaMA2 架构搭建 38M LLM，实现预训练到 DPO 全流程
 
 用 PyTorch 手写 Transformer，跑通预训练、SFT、LoRA、DPO，每一步都能复现。
 
