@@ -130,7 +130,7 @@ class PretrainDatasetMmap(Dataset):
 
     def __len__(self):
         # 可用的训练样本数
-        return (self.total_tokens - 1) // self.max_length
+        return self.total_tokens // self.max_length
 
     def __getitem__(self, idx):
         """按索引取第 idx 个固定长度的片段"""
