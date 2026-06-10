@@ -15,7 +15,7 @@
 | **训练方式** | 从零预训练 → SFT → DPO | QLoRA 微调 |
 | **Tokenizer** | SentencePiece BPE（6400 词表） | Qwen 原生 tokenizer |
 | **部署** | CLI 对话 + HuggingFace 导出 | vLLM + PagedAttention |
-| **可训练参数** | 887,808（2.28%） | 2.18M（0.14%） |
+| **可训练参数** | 887,808（2.28%） | 659,456（0.04%） |
 
 ---
 
@@ -73,7 +73,7 @@
 |------|------|
 | 基座模型 | Qwen2.5-1.5B（1.55B 参数） |
 | 量化 | 4-bit NF4（BitsAndBytes） |
-| LoRA 参数 | 2.18M（基座的 0.14%） |
+| LoRA 参数 | 659,456（基座的 0.04%） |
 | 部署 | vLLM + PagedAttention |
 
 ---

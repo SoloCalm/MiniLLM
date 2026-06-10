@@ -1,4 +1,4 @@
-"""41M vs 1.5B 生成效果对比
+"""~38M vs 1.5B 生成效果对比
 
 用 20 个固定问题，让两个模型分别生成回答，对比效果。
 
@@ -43,7 +43,7 @@ TEST_PROMPTS = [
 
 
 def load_mini_model(ckpt_path, device):
-    """加载自研 41M 模型"""
+    """加载自研 ~38M 模型"""
     config = ModelConfig()
     model = MiniLLM(config)
 
@@ -89,7 +89,7 @@ def load_qwen_model(adapter_path, device):
 
 
 def generate_mini_response(model, tokenizer, prompt, max_new_tokens=100, device="cuda"):
-    """用 41M 模型生成回答"""
+    """用 38M 模型生成回答"""
     prompt_ids = tokenizer.encode(prompt)
     bos_id = 1
     eos_id = 2
@@ -153,7 +153,7 @@ def generate_qwen_response(model, tokenizer, prompt, max_new_tokens=100, device=
 
 def main():
     import argparse
-    parser = argparse.ArgumentParser(description="41M vs 1.5B 生成效果对比")
+    parser = argparse.ArgumentParser(description="38M vs 1.5B 生成效果对比")
     parser.add_argument("--tokenizer-path", type=str, default="tokenizer/bpe.model")  # tokenizer 路径
     args = parser.parse_args()
 
@@ -164,10 +164,10 @@ def main():
     tokenizer = spm.SentencePieceProcessor()
     tokenizer.Load(args.tokenizer_path)
 
-    # 加载 41M 模型
-    print("\n加载 41M 模型...")
+    # 加载 38M 模型
+    print("\n加载 38M 模型...")
     mini_model = load_mini_model("outputs/dpo/ckpt_final.pt", device)
-    print("41M 模型加载完成")
+    print("38M 模型加载完成")
 
     # 加载 Qwen 1.5B 模型
     print("\n加载 Qwen 1.5B + QLoRA 模型...")
@@ -179,9 +179,9 @@ def main():
     for i, prompt in enumerate(TEST_PROMPTS):
         print(f"\n[{i+1}/20] {prompt}")
 
-        # 41M 模型生成
+        # 38M 模型生成
         mini_response = generate_mini_response(mini_model, tokenizer, prompt, device=device)
-        print(f"  41M: {mini_response[:80]}...")
+        print(f"  38M: {mini_response[:80]}...")
 
         # Qwen 1.5B 生成
         qwen_response = generate_qwen_response(qwen_model, qwen_tokenizer, prompt, device=device)
@@ -203,12 +203,12 @@ def main():
 
     with open(output_file, "w", encoding="utf-8") as f:
         f.write("=" * 60 + "\n")
-        f.write("41M vs 1.5B 生成效果对比\n")
+        f.write("38M vs 1.5B 生成效果对比\n")
         f.write("=" * 60 + "\n\n")
 
         for r in results:
             f.write(f"Prompt: {r['prompt']}\n")
-            f.write(f"41M: {r['mini_41m']}\n")
+            f.write(f"38M: {r['mini_41m']}\n")
             f.write(f"1.5B: {r['qwen_1_5b']}\n")
             f.write("-" * 60 + "\n")
 

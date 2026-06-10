@@ -11,7 +11,7 @@
 
 
 class ModelConfig:
-    """LLM 模型配置（41M 参数，适配 6GB GPU）
+    """LLM 模型配置（~38M 参数，适配 6GB GPU）
 
     使用类属性作为默认值，通过 __init__ 接受 kwargs 覆盖。
     这种模式的好处：配置清晰可见、IDE 能自动补全、序列化方便。

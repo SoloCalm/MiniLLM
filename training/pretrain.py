@@ -159,7 +159,7 @@ def main():
     # ============================================================
     # 步骤 1 - 初始化配置和模型
     # ============================================================
-    config = ModelConfig()                   # 41M 参数配置（hidden=512, layers=12, heads=8）
+    config = ModelConfig()                   # ~38M 参数配置（hidden=512, layers=12, heads=8）
     model = MiniLLM(config)                  # 创建模型（RoPE + GQA + SwiGLU + RMSNorm）
     print(f"模型参数量: {model.count_parameters() / 1e6:.1f}M")
 

@@ -24,7 +24,7 @@ Dual-track LLM training project on a single **RTX 4050 6GB** GPU:
 |--------|-------|
 | Base Model | Qwen2.5-1.5B (1.55B params) |
 | Quantization | 4-bit NF4 (BitsAndBytes) |
-| LoRA Params | 2.18M (0.14% of base) |
+| LoRA Params | 659,456 (0.04% of base) |
 | Deployment | vLLM with PagedAttention |
 
 ## 📊 Experiment Results

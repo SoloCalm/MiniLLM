@@ -2,7 +2,7 @@
     "_comment": "路线 B：Qwen2.5-1.5B QLoRA 微调配置",
     "base_model": "Qwen/Qwen2.5-1.5B",
     "sft_lr": 2e-4,
-    "sft_epochs": 3,
+    "sft_epochs": 1,
     "sft_batch_size": 4,
     "sft_grad_accum": 4,
     "sft_max_length": 512,

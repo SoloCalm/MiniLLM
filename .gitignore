@@ -31,3 +31,6 @@ wandb/
 
 # Editable install
 *.egg-info/
+
+# HuggingFace cache
+.hf_cache/

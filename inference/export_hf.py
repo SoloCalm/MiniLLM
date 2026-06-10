@@ -1,6 +1,6 @@
 """导出模型为 HuggingFace 格式
 
-将自研 41M 模型导出为 HuggingFace 格式，支持：
+将自研 ~38M 模型导出为 HuggingFace 格式，支持：
 - config.json：模型配置
 - model.safetensors：模型权重
 - tokenizer.json：tokenizer 配置

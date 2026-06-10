@@ -39,8 +39,12 @@ def generate_with_kv_cache(model, input_ids, max_new_tokens=50):
     generated = input_ids.clone()
 
     for _ in range(max_new_tokens):
-        # 只传最后一个 token
-        logits = model(generated[:, -1:], kv_cache)
+        if kv_cache.get_seq_length(0) == 0:
+            # 首次：传入完整 prompt，构建 KV Cache
+            logits = model(generated, kv_cache)
+        else:
+            # 后续：只传最后一个 token
+            logits = model(generated[:, -1:], kv_cache)
         next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)
         generated = torch.cat([generated, next_token], dim=1)
 
