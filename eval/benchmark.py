@@ -5,7 +5,7 @@
 
 用法：
     # 评测单个模型
-    python eval/benchmark.py --checkpoint outputs/dpo/ckpt_final.pt
+    python eval/benchmark.py --checkpoints outputs/dpo/ckpt_final.pt
 
     # 对比多个模型
     python eval/benchmark.py \
@@ -13,7 +13,7 @@
         --labels Pretrain SFT DPO
 
     # 输出到文件
-    python eval/benchmark.py --checkpoint outputs/dpo/ckpt_final.pt --output results/benchmark.json
+    python eval/benchmark.py --checkpoints outputs/dpo/ckpt_final.pt --output results/benchmark.json
 """
 
 import argparse

@@ -193,7 +193,7 @@ def main():
 
         results.append({
             "prompt": prompt,
-            "mini_41m": mini_response,
+            "mini_38m": mini_response,
             "qwen_1_5b": qwen_response,
         })
 
@@ -208,7 +208,7 @@ def main():
 
         for r in results:
             f.write(f"Prompt: {r['prompt']}\n")
-            f.write(f"38M: {r['mini_41m']}\n")
+            f.write(f"38M: {r['mini_38m']}\n")
             f.write(f"1.5B: {r['qwen_1_5b']}\n")
             f.write("-" * 60 + "\n")
 

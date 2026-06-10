@@ -118,15 +118,15 @@
     },
     {
       "id": 5,
-      "name": "41M vs 1.5B 生成对比",
+      "name": "38M vs 1.5B 生成对比",
       "description": "对比从零训练小模型和微调大模型的生成效果",
       "config": {
-        "mini_model": "41M Transformer",
+        "mini_model": "38M Transformer",
         "large_model": "Qwen2.5-1.5B QLoRA",
         "test_prompts": 20
       },
       "results": {
-        "mini_41m": {
+        "mini_38m": {
           "response_rate": "15%",
           "quality": "大部分为空，少数是对话格式"
         },
@@ -135,7 +135,7 @@
           "quality": "有内容，但存在重复和乱码"
         }
       },
-      "conclusion": "41M 小模型表达能力有限，大模型微调效果更好"
+      "conclusion": "38M 小模型表达能力有限，大模型微调效果更好"
     }
   ],
   "perplexity": {

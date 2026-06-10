@@ -27,9 +27,9 @@ from training.data_loader import SFTDataset, create_dataloader
 def train_one_step(model, batch, optimizer, config):
     """训练一步
 
-    和 pretrain.py 的 train_one_step 完全一样。
-    SFTDataset 的 labels 已经把 prompt 部分设为 -100，
-    cross_entropy 会自动忽略 label=-100 的位置。
+    和 pretrain.py 的 train_one_step 类似，区别在于：
+    1) ignore_index=-100（SFT 的 labels 用 -100 mask prompt 部分）
+    2) scheduler.step() 在 main loop 中调用而非函数内部
 
     步骤：
     1. 前向传播
