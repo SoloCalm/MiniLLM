@@ -14,7 +14,7 @@
 | **参数量** | ~38M | 1.55B |
 | **训练方式** | 从零预训练 → SFT → DPO | QLoRA 微调 |
 | **Tokenizer** | SentencePiece BPE（6400 词表） | Qwen 原生 tokenizer |
-| **部署** | CLI 对话 + HuggingFace 导出 | HuggingFace 导出 + CLI 对话 |
+| **部署** | HuggingFace 导出 + CLI 对话 | HuggingFace 导出 + CLI 对话 |
 | **可训练参数** | 887,808（2.28%） | 659,456（0.04%） |
 
 ---
