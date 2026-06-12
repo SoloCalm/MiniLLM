@@ -14,7 +14,7 @@
 | **参数量** | ~38M | 1.55B |
 | **训练方式** | 从零预训练 → SFT → DPO | QLoRA 微调 |
 | **Tokenizer** | SentencePiece BPE（6400 词表） | Qwen 原生 tokenizer |
-| **部署** | CLI 对话 + HuggingFace 导出 | vLLM + PagedAttention |
+| **部署** | CLI 对话 + HuggingFace 导出 | HuggingFace 导出 + CLI 对话 |
 | **可训练参数** | 887,808（2.28%） | 659,456（0.04%） |
 
 ---
@@ -74,7 +74,7 @@
 | 基座模型 | Qwen2.5-1.5B（1.55B 参数） |
 | 量化 | 4-bit NF4（BitsAndBytes） |
 | LoRA 参数 | 659,456（基座的 0.04%） |
-| 部署 | vLLM + PagedAttention |
+| 部署 | HuggingFace 导出 + CLI 对话 |
 
 ---
 
@@ -118,10 +118,8 @@
 
 | 配置 | 值 |
 |------|-----|
-| 服务框架 | vLLM |
-| 注意力机制 | PagedAttention |
-| 量化格式 | GPTQ/AWQ |
-| API 兼容 | OpenAI 格式 |
+| 导出格式 | HuggingFace |
+| 推理方式 | 命令行对话（CLI） |
 
 ### 运行命令
 
@@ -136,12 +134,6 @@ python scripts/4_qlora.py \
     --lr 2e-4 \
     --lora-r 16 \
     --lora-alpha 32
-
-# 启动 vLLM 服务
-python scripts/serve_vllm.py
-
-# 验证服务
-python scripts/smoke_vllm.py
 ```
 
 ---
@@ -274,10 +266,6 @@ python inference/export_hf.py \
 
 # 命令行对话
 python inference/chat.py --checkpoint outputs/dpo/ckpt_final.pt
-
-# vLLM 服务（Qwen2.5-1.5B QLoRA）
-python scripts/serve_vllm.py
-python scripts/smoke_vllm.py  # 验证服务
 ```
 
 ---
@@ -315,8 +303,8 @@ MiniLLM/
 │   ├── run_qlora_baseline.py
 │   ├── compare_models.py   #   38M vs 1.5B 生成对比
 │   ├── kv_cache_benchmark.py
-│   ├── serve_vllm.py       #   vLLM 服务部署
-│   ├── smoke_vllm.py       #   vLLM 服务验证
+│   ├── serve_vllm.py       #   vLLM 服务部署（需 Linux/WSL2）
+│   ├── smoke_vllm.py       #   vLLM 服务验证（需 Linux/WSL2）
 │   └── smoke_test.py       #   环境验证
 │
 ├── tokenizer/              # Tokenizer 训练
@@ -471,7 +459,7 @@ MiniLLM/
 - **Tokenizer：** SentencePiece（BPE，6400 词表）
 - **微调：** 自实现 LoRA + HuggingFace PEFT/QLoRA
 - **对齐：** 自实现 DPO
-- **部署：** vLLM 服务 + 命令行对话 + HuggingFace 导出
+- **部署：** 命令行对话 + HuggingFace 导出
 - **量化：** BitsAndBytes 4-bit NF4（QLoRA 基线）
 - **实验追踪：** Weights & Biases（可选）
 

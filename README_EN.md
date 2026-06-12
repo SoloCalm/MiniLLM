@@ -3,7 +3,7 @@
 Dual-track LLM training project on a single **RTX 4050 6GB** GPU:
 
 - **Track A (Self-built 38M):** Hand-written LLaMA2-style Transformer → Pretrain → SFT → LoRA → DPO
-- **Track B (Qwen2.5-1.5B):** QLoRA fine-tuning → vLLM service deployment
+- **Track B (Qwen2.5-1.5B):** QLoRA fine-tuning → HuggingFace export + CLI chat
 
 ## Key Results
 
@@ -25,7 +25,7 @@ Dual-track LLM training project on a single **RTX 4050 6GB** GPU:
 | Base Model | Qwen2.5-1.5B (1.55B params) |
 | Quantization | 4-bit NF4 (BitsAndBytes) |
 | LoRA Params | 659,456 (0.04% of base) |
-| Deployment | vLLM with PagedAttention |
+| Deployment | HuggingFace export + CLI chat |
 
 ## 📊 Experiment Results
 
@@ -240,10 +240,6 @@ python inference/export_hf.py \
     --checkpoint outputs/dpo/ckpt_final.pt \
     --output-dir outputs/hf_model
 
-# vLLM service (Qwen2.5-1.5B QLoRA)
-python scripts/serve_vllm.py
-python scripts/smoke_vllm.py  # verify service
-
 # Interactive chat
 python inference/chat.py --checkpoint outputs/dpo/ckpt_final.pt
 ```
@@ -281,8 +277,8 @@ MiniLLM/
 │   ├── run_qlora_baseline.py
 │   ├── compare_models.py   #   38M vs 1.5B generation comparison
 │   ├── kv_cache_benchmark.py
-│   ├── serve_vllm.py       #   vLLM service deployment
-│   ├── smoke_vllm.py       #   vLLM service verification
+│   ├── serve_vllm.py       #   vLLM service deployment (Linux/WSL2 required)
+│   ├── smoke_vllm.py       #   vLLM service verification (Linux/WSL2 required)
 │   └── smoke_test.py       #   Environment smoke test
 │
 ├── tokenizer/              # Tokenizer training
@@ -374,7 +370,7 @@ This exceeded the available system memory on a 6GB GPU setup.
 - **Tokenizer:** SentencePiece (BPE, 6400 vocab)
 - **Fine-tuning:** Custom LoRA + HuggingFace PEFT/QLoRA
 - **Alignment:** Custom DPO implementation
-- **Deployment:** vLLM service + CLI chat + HuggingFace export
+- **Deployment:** CLI chat + HuggingFace export
 - **Quantization:** BitsAndBytes 4-bit NF4 (for QLoRA baseline)
 - **Experiment Tracking:** Weights & Biases (optional)
 
